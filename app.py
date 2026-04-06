@@ -218,8 +218,8 @@ async def dashboard(request: Request, token: str = ""):
         conn.close()
         return RedirectResponse("/")
 
-    # For demo: auto-mark as paid if coming from Stripe redirect
-    # In production, rely on webhook only
+    # Auto-grant access (Stripe bypassed for now)
+    # TODO: re-enable Stripe checkout and rely on webhook only
     if not user["paid"]:
         conn.execute("UPDATE users SET paid = 1 WHERE id = ?", (user["id"],))
         conn.commit()

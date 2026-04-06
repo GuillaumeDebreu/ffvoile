@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePayBtn();
     });
 
-    // ─── Payment Flow ───────────────────────────────────────────
+    // ─── Access Flow (Stripe bypassed for now) ────────────────────
     payBtn.addEventListener('click', async () => {
         if (!selectedFile || !emailInput.value.includes('@')) return;
 
@@ -105,34 +105,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(err.detail || 'Erreur upload');
             }
 
-            const { user_id, token } = await uploadRes.json();
+            const { token } = await uploadRes.json();
 
-            // 2. Create Stripe checkout session
-            const checkoutRes = await fetch('/api/create-checkout-session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id, token }),
-            });
-
-            if (!checkoutRes.ok) {
-                const err = await checkoutRes.json();
-                throw new Error(err.detail || 'Erreur paiement');
-            }
-
-            const { checkout_url } = await checkoutRes.json();
-
-            // 3. Redirect to Stripe
-            if (checkout_url) {
-                window.location.href = checkout_url;
-            } else {
-                // Stripe test mode without real key - redirect to dashboard directly
-                window.location.href = `/dashboard?token=${token}`;
-            }
+            // 2. Redirect to dashboard directly (Stripe will be added later)
+            window.location.href = `/dashboard?token=${token}`;
 
         } catch (err) {
             alert('Erreur: ' + err.message);
             payBtn.disabled = false;
-            payBtn.textContent = 'Payer 9,99\u20AC et envoyer mon CV';
+            payBtn.textContent = 'Accéder au dashboard \u2192';
         }
     });
 });
