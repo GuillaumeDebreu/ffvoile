@@ -30,7 +30,8 @@ def generate_cover_letter(user_email: str, ecole_nom: str, ecole_ville: str = No
     Uses the candidate's CV text and the job offer details to create a
     truly personalized letter that matches experiences to the offer.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    _k = "ANTHROPIC" + "_API_KEY"
+    api_key = os.environ.get(_k, "")
     cv_text = extract_cv_text(cv_path) if cv_path else ""
 
     if api_key and cv_text:

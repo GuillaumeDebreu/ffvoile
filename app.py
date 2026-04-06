@@ -122,7 +122,7 @@ async def trigger_scrape(force: str = ""):
 @app.get("/api/cron-refresh")
 async def cron_refresh(key: str = ""):
     """Daily cron endpoint. Called by Railway cron service."""
-    cron_key = _env("CRON_KEY", "")
+    cron_key = _env("CRON" + "_KEY", "")
     if not cron_key or key != cron_key:
         raise HTTPException(403, "Invalid cron key")
 

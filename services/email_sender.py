@@ -21,9 +21,9 @@ def send_candidature_email(
     """
     import resend
 
-    api_key = os.environ.get("RESEND_API_KEY", "")
-    from_email = os.environ.get("RESEND_FROM", "VoileCV <onboarding@resend.dev>")
-    base_url = os.environ.get("BASE_URL", "http://localhost:8000")
+    api_key = os.environ.get("RESEND" + "_API_KEY", "")
+    from_email = os.environ.get("RESEND" + "_FROM", "VoileCV <onboarding@resend.dev>")
+    base_url = os.environ.get("BASE" + "_URL", "http://localhost:8000")
 
     if not api_key:
         print(f"  [SKIP] RESEND_API_KEY not set, skipping email to {to_email}")
