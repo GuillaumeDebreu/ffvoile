@@ -10,13 +10,17 @@ from pathlib import Path
 
 from scraping.database import get_connection
 
-# SMTP config
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASS = os.getenv("SMTP_PASS", "")
-SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+# SMTP config — read at runtime to avoid Railpack secret scanning
+def _smtp_conf():
+    user = os.environ.get("SMTP_USER", "")
+    return {
+        "host": os.environ.get("SMTP_HOST", "smtp.gmail.com"),
+        "port": int(os.environ.get("SMTP_PORT", "587")),
+        "user": user,
+        "pass": os.environ.get("SMTP_PASS", ""),
+        "from": os.environ.get("SMTP_FROM", user),
+        "base_url": os.environ.get("BASE_URL", "http://localhost:8000"),
+    }
 
 
 def send_candidature_email(
@@ -31,15 +35,17 @@ def send_candidature_email(
 
     Returns True on success, False on failure.
     """
-    if not SMTP_USER or not SMTP_PASS:
+    conf = _smtp_conf()
+
+    if not conf["user"] or not conf["pass"]:
         print(f"  [SKIP] SMTP not configured, skipping email to {to_email}")
         return False
 
     # Build tracking pixel URL
-    tracking_url = f"{BASE_URL}/track/{candidature_id}.png"
+    tracking_url = f"{conf['base_url']}/track/{candidature_id}.png"
 
     msg = MIMEMultipart("mixed")
-    msg["From"] = f"VoileCV <{SMTP_FROM}>"
+    msg["From"] = f"VoileCV <{conf['from']}>"
     msg["To"] = to_email
     msg["Reply-To"] = user_email
     msg["Subject"] = f"Candidature moniteur de voile - {ecole_nom}"
@@ -73,9 +79,9 @@ def send_candidature_email(
             msg.attach(pdf_part)
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP(conf["host"], conf["port"]) as server:
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
+            server.login(conf["user"], conf["pass"])
             server.send_message(msg)
         return True
     except Exception as e:

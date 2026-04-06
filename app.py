@@ -7,7 +7,6 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 
-import stripe
 from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
@@ -15,14 +14,11 @@ from fastapi.templating import Jinja2Templates
 
 from scraping.database import get_connection, init_db
 
-# Config
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "sk_test_PLACEHOLDER")
-STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "pk_test_PLACEHOLDER")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "whsec_PLACEHOLDER")
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
-PRICE_CENTS = 999  # 9.99€
+# Config — loaded at runtime, not at import time, to avoid Railpack secret issues
+def _env(key, default=""):
+    return os.environ.get(key, default)
 
-stripe.api_key = STRIPE_SECRET_KEY
+PRICE_CENTS = 999  # 9.99€
 
 UPLOAD_DIR = Path(__file__).parent / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -122,7 +118,7 @@ async def landing(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="landing.html",
-        context={"stripe_key": STRIPE_PUBLISHABLE_KEY},
+        context={"stripe_key": _env("STRIPE_PUBLISHABLE_KEY", "pk_test_PLACEHOLDER")},
     )
 
 
@@ -173,6 +169,7 @@ async def upload_cv(file: UploadFile = File(...), email: str = Form("")):
 
 @app.post("/api/create-checkout-session")
 async def create_checkout_session(request: Request):
+    import stripe
     data = await request.json()
     user_id = data.get("user_id")
     token = data.get("token")
@@ -190,6 +187,8 @@ async def create_checkout_session(request: Request):
         raise HTTPException(404, "Utilisateur non trouvé")
 
     try:
+        stripe.api_key = _env("STRIPE_SECRET_KEY", "sk_test_PLACEHOLDER")
+        base = _env("BASE_URL", "http://localhost:8000")
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{
@@ -204,8 +203,8 @@ async def create_checkout_session(request: Request):
                 "quantity": 1,
             }],
             mode="payment",
-            success_url=f"{BASE_URL}/dashboard?token={token}",
-            cancel_url=f"{BASE_URL}/?cancelled=true",
+            success_url=f"{base}/dashboard?token={token}",
+            cancel_url=f"{base}/?cancelled=true",
             client_reference_id=user_id,
             customer_email=user["email"],
         )
@@ -228,12 +227,13 @@ async def create_checkout_session(request: Request):
 
 @app.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
+    import stripe
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
+            payload, sig_header, _env("STRIPE_WEBHOOK_SECRET", "whsec_PLACEHOLDER")
         )
     except (ValueError, stripe.SignatureVerificationError):
         raise HTTPException(400, "Invalid signature")
