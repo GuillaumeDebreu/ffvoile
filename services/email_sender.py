@@ -1,26 +1,10 @@
-"""SMTP email sending with pixel tracking."""
+"""Email sending via Resend API with pixel tracking."""
 
 import os
-import uuid
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.application import MIMEApplication
+import base64
 from pathlib import Path
 
 from scraping.database import get_connection
-
-# SMTP config — read at runtime to avoid Railpack secret scanning
-def _smtp_conf():
-    user = os.environ.get("SMTP_USER", "")
-    return {
-        "host": os.environ.get("SMTP_HOST", "smtp.gmail.com"),
-        "port": int(os.environ.get("SMTP_PORT", "587")),
-        "user": user,
-        "pass": os.environ.get("SMTP_PASS", ""),
-        "from": os.environ.get("SMTP_FROM", user),
-        "base_url": os.environ.get("BASE_URL", "http://localhost:8000"),
-    }
 
 
 def send_candidature_email(
@@ -35,22 +19,21 @@ def send_candidature_email(
 
     Returns True on success, False on failure.
     """
-    conf = _smtp_conf()
+    import resend
 
-    if not conf["user"] or not conf["pass"]:
-        print(f"  [SKIP] SMTP not configured, skipping email to {to_email}")
+    api_key = os.environ.get("RESEND_API_KEY", "")
+    from_email = os.environ.get("RESEND_FROM", "VoileCV <onboarding@resend.dev>")
+    base_url = os.environ.get("BASE_URL", "http://localhost:8000")
+
+    if not api_key:
+        print(f"  [SKIP] RESEND_API_KEY not set, skipping email to {to_email}")
         return False
 
+    resend.api_key = api_key
+
     # Build tracking pixel URL
-    tracking_url = f"{conf['base_url']}/track/{candidature_id}.png"
+    tracking_url = f"{base_url}/track/{candidature_id}.png"
 
-    msg = MIMEMultipart("mixed")
-    msg["From"] = f"VoileCV <{conf['from']}>"
-    msg["To"] = to_email
-    msg["Reply-To"] = user_email
-    msg["Subject"] = f"Candidature moniteur de voile - {ecole_nom}"
-
-    # HTML body with tracking pixel
     html_body = f"""<html>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
 {cover_letter.replace(chr(10), '<br>')}
@@ -59,30 +42,30 @@ def send_candidature_email(
 </body>
 </html>"""
 
-    text_body = cover_letter
-
-    # Attach text and HTML alternatives
-    alt_part = MIMEMultipart("alternative")
-    alt_part.attach(MIMEText(text_body, "plain", "utf-8"))
-    alt_part.attach(MIMEText(html_body, "html", "utf-8"))
-    msg.attach(alt_part)
-
-    # Attach CV
+    # Build attachments
+    attachments = []
     cv_file = Path(cv_path)
     if cv_file.exists():
-        with open(cv_file, "rb") as f:
-            pdf_part = MIMEApplication(f.read(), _subtype="pdf")
-            pdf_part.add_header(
-                "Content-Disposition", "attachment",
-                filename="CV.pdf"
-            )
-            msg.attach(pdf_part)
+        cv_bytes = cv_file.read_bytes()
+        attachments.append({
+            "filename": "CV.pdf",
+            "content": list(cv_bytes),
+        })
 
     try:
-        with smtplib.SMTP(conf["host"], conf["port"]) as server:
-            server.starttls()
-            server.login(conf["user"], conf["pass"])
-            server.send_message(msg)
+        params = {
+            "from": from_email,
+            "to": [to_email],
+            "reply_to": user_email,
+            "subject": f"Candidature moniteur de voile - {ecole_nom}",
+            "html": html_body,
+            "text": cover_letter,
+        }
+        if attachments:
+            params["attachments"] = attachments
+
+        result = resend.Emails.send(params)
+        print(f"  [OK] Email sent to {to_email} (id: {result.get('id', '?')})")
         return True
     except Exception as e:
         print(f"  [ERROR] Failed to send to {to_email}: {e}")
