@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — VoileCV</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container nav-content">
+            <a href="/" class="logo">VoileCV</a>
+            <span style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">{{ user.email }}</span>
+        </div>
+    </nav>
+
+    <div class="dashboard-header">
+        <div class="container">
+            <h1>Ton dashboard</h1>
+            <p>Gère tes candidatures auprès des écoles de voile</p>
+        </div>
+    </div>
+
+    <div class="dashboard-body">
+        <div class="container">
+            <!-- Filters -->
+            <div class="filters-bar">
+                <select id="filter-dept">
+                    <option value="">Tous les départements</option>
+                </select>
+                <select id="filter-region">
+                    <option value="">Toutes les régions</option>
+                </select>
+                <select id="filter-offre">
+                    <option value="">Toutes les écoles</option>
+                    <option value="oui">Avec offre d'emploi</option>
+                </select>
+                <input type="text" id="filter-search" placeholder="Rechercher une école, une ville...">
+            </div>
+
+            <!-- Actions -->
+            <div class="actions-bar">
+                <div>
+                    <label>
+                        <input type="checkbox" id="select-all"> Tout sélectionner
+                    </label>
+                    <span class="selection-count" id="selection-count"></span>
+                </div>
+                <button class="btn btn-primary btn-sm" id="send-btn" disabled>
+                    Envoyer mon CV aux écoles sélectionnées
+                </button>
+            </div>
+
+            <!-- Table -->
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:40px"></th>
+                            <th>École / Club</th>
+                            <th>Ville</th>
+                            <th>Dept</th>
+                            <th>Offre en cours</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ecoles-tbody">
+                        <tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Chargement...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const TOKEN = '{{ token }}';
+
+    let allData = [];
+    let selected = new Set();
+
+    async function loadEcoles(params = {}) {
+        const qs = new URLSearchParams({ token: TOKEN, ...params });
+        const res = await fetch(`/api/ecoles?${qs}`);
+        if (!res.ok) return;
+        allData = await res.json();
+        renderTable(allData);
+        populateFilters(allData);
+    }
+
+    function populateFilters(data) {
+        const depts = [...new Set(data.map(d => d.departement).filter(Boolean))].sort();
+        const regions = [...new Set(data.map(d => d.region).filter(Boolean))].sort();
+
+        const deptSelect = document.getElementById('filter-dept');
+        const regionSelect = document.getElementById('filter-region');
+
+        // Keep first option, rebuild rest
+        if (deptSelect.options.length <= 1) {
+            depts.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d; opt.textContent = d;
+                deptSelect.appendChild(opt);
+            });
+        }
+        if (regionSelect.options.length <= 1) {
+            regions.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r; opt.textContent = r;
+                regionSelect.appendChild(opt);
+            });
+        }
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('ecoles-tbody');
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Aucune école trouvée</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(row => {
+            const hasOffre = row.offre_id !== null;
+            const checked = selected.has(row.id) ? 'checked' : '';
+            return `
+                <tr class="${hasOffre ? 'has-offre' : ''}">
+                    <td><input type="checkbox" class="row-check" data-id="${row.id}" ${checked}></td>
+                    <td><strong>${esc(row.nom)}</strong></td>
+                    <td>${esc(row.ville || '—')}</td>
+                    <td>${esc(row.departement || '—')}</td>
+                    <td>${hasOffre
+                        ? `<a href="${esc(row.url_offre)}" target="_blank" class="offre-badge">${esc(truncate(row.offre_intitule, 35))}</a>`
+                        : '<span style="color:#9ca3af">—</span>'
+                    }</td>
+                    <td><span class="status-badge status-non-envoye">Non envoyé</span></td>
+                </tr>
+            `;
+        }).join('');
+
+        // Re-bind checkboxes
+        tbody.querySelectorAll('.row-check').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const id = parseInt(cb.dataset.id);
+                cb.checked ? selected.add(id) : selected.delete(id);
+                updateSelection();
+            });
+        });
+    }
+
+    function updateSelection() {
+        const count = selected.size;
+        document.getElementById('selection-count').textContent =
+            count > 0 ? `${count} école${count > 1 ? 's' : ''} sélectionnée${count > 1 ? 's' : ''}` : '';
+        document.getElementById('send-btn').disabled = count === 0;
+        document.getElementById('send-btn').textContent =
+            count > 0 ? `Envoyer mon CV aux ${count} écoles sélectionnées` : 'Envoyer mon CV aux écoles sélectionnées';
+    }
+
+    // Select all
+    document.getElementById('select-all').addEventListener('change', e => {
+        const checks = document.querySelectorAll('.row-check');
+        checks.forEach(cb => {
+            cb.checked = e.target.checked;
+            const id = parseInt(cb.dataset.id);
+            e.target.checked ? selected.add(id) : selected.delete(id);
+        });
+        updateSelection();
+    });
+
+    // Filters
+    function applyFilters() {
+        const dept = document.getElementById('filter-dept').value;
+        const region = document.getElementById('filter-region').value;
+        const offre = document.getElementById('filter-offre').value;
+        const search = document.getElementById('filter-search').value.toLowerCase();
+
+        let filtered = allData;
+        if (dept) filtered = filtered.filter(r => r.departement === dept);
+        if (region) filtered = filtered.filter(r => r.region === region);
+        if (offre === 'oui') filtered = filtered.filter(r => r.offre_id !== null);
+        if (search) filtered = filtered.filter(r =>
+            (r.nom || '').toLowerCase().includes(search) ||
+            (r.ville || '').toLowerCase().includes(search)
+        );
+
+        renderTable(filtered);
+    }
+
+    document.getElementById('filter-dept').addEventListener('change', applyFilters);
+    document.getElementById('filter-region').addEventListener('change', applyFilters);
+    document.getElementById('filter-offre').addEventListener('change', applyFilters);
+
+    let searchTimeout;
+    document.getElementById('filter-search').addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(applyFilters, 300);
+    });
+
+    // Send CV button
+    document.getElementById('send-btn').addEventListener('click', () => {
+        const count = selected.size;
+        if (count === 0) return;
+        alert(`Fonctionnalité d'envoi en cours de développement.\n\n${count} école(s) sélectionnée(s) recevront ton CV personnalisé.`);
+    });
+
+    // Helpers
+    function esc(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function truncate(str, len) {
+        if (!str) return '';
+        return str.length > len ? str.slice(0, len) + '...' : str;
+    }
+
+    // Init
+    loadEcoles();
+    </script>
+</body>
+</html>
