@@ -88,27 +88,52 @@ if _offre_count == 0:
 # ─── Manual scrape trigger ───────────────────────────────────────────────
 
 @app.get("/api/scrape")
-async def trigger_scrape():
-    """Trigger a manual scrape. Visit this URL to populate the database."""
+async def trigger_scrape(force: str = ""):
+    """Trigger a manual scrape. Visit this URL to populate/refresh the database."""
     conn = get_connection()
     count = conn.execute("SELECT COUNT(*) FROM offres").fetchone()[0]
     conn.close()
 
-    if count > 0:
-        return {"status": "already_populated", "offres": count}
+    if count > 0 and force != "1":
+        return {"status": "already_populated", "offres": count,
+                "hint": "Add ?force=1 to re-scrape"}
 
     def _bg_scrape():
         try:
             from scraping.scrape_offres import scrape_all_offers
-            print("[MANUAL] Starting scrape...")
+            print("[SCRAPE] Starting...")
             scrape_all_offers(max_detail_pages=None)
-            print("[MANUAL] Scrape complete.")
+            print("[SCRAPE] Complete.")
         except Exception as e:
-            print(f"[MANUAL ERROR] {e}")
+            print(f"[SCRAPE ERROR] {e}")
             traceback.print_exc()
 
     threading.Thread(target=_bg_scrape, daemon=True).start()
-    return {"status": "scraping_started", "message": "Rafraîchis le dashboard dans 2-3 minutes."}
+    return {"status": "scraping_started", "message": "Refresh en cours, 2-3 minutes."}
+
+
+@app.get("/api/cron-refresh")
+async def cron_refresh(key: str = ""):
+    """Daily cron endpoint. Called by Railway cron service."""
+    cron_key = _env("CRON_KEY", "")
+    if not cron_key or key != cron_key:
+        raise HTTPException(403, "Invalid cron key")
+
+    def _bg_refresh():
+        try:
+            from scraping.scrape_offres import scrape_all_offers
+            print("[CRON] Daily refresh starting...")
+            scrape_all_offers(max_detail_pages=None)
+            conn = get_connection()
+            count = conn.execute("SELECT COUNT(*) FROM offres").fetchone()[0]
+            conn.close()
+            print(f"[CRON] Refresh complete. {count} offres in database.")
+        except Exception as e:
+            print(f"[CRON ERROR] {e}")
+            traceback.print_exc()
+
+    threading.Thread(target=_bg_refresh, daemon=True).start()
+    return {"status": "cron_started"}
 
 
 # ─── Landing Page ────────────────────────────────────────────────────────
