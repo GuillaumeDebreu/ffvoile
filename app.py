@@ -68,6 +68,19 @@ def init_app_db():
 
 init_app_db()
 
+# Auto-scrape if database is empty (first deploy)
+_conn = get_connection()
+_offre_count = _conn.execute("SELECT COUNT(*) FROM offres").fetchone()[0]
+_conn.close()
+if _offre_count == 0:
+    import threading
+    def _initial_scrape():
+        from scraping.scrape_offres import scrape_all_offers
+        print("[STARTUP] Database empty, running initial scrape...")
+        scrape_all_offers(max_detail_pages=None)
+        print("[STARTUP] Initial scrape complete.")
+    threading.Thread(target=_initial_scrape, daemon=True).start()
+
 
 # ─── Landing Page ────────────────────────────────────────────────────────
 
