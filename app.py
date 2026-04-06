@@ -296,12 +296,27 @@ async def dashboard(request: Request, token: str = ""):
         conn.commit()
         user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
 
+    # Get last scrape date
+    last_scrape = conn.execute(
+        "SELECT MAX(date_scrape) as last FROM offres"
+    ).fetchone()
+    last_update = last_scrape["last"] if last_scrape else None
+
+    offre_count = conn.execute("SELECT COUNT(*) FROM offres").fetchone()[0]
+    ecole_count = conn.execute("SELECT COUNT(*) FROM ecoles").fetchone()[0]
+
     conn.close()
 
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
-        context={"user": dict(user), "token": token},
+        context={
+            "user": dict(user),
+            "token": token,
+            "last_update": last_update,
+            "offre_count": offre_count,
+            "ecole_count": ecole_count,
+        },
     )
 
 

@@ -17,8 +17,16 @@
 
     <div class="dashboard-header">
         <div class="container">
-            <h1>Ton dashboard</h1>
-            <p>Gère tes candidatures auprès des écoles de voile</p>
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px">
+                <div>
+                    <h1>Ton dashboard</h1>
+                    <p>Gère tes candidatures auprès des écoles de voile</p>
+                </div>
+                <div style="text-align:right;font-size:0.8rem;color:rgba(255,255,255,0.5);line-height:1.6">
+                    <div>{{ ecole_count }} écoles · {{ offre_count }} offres</div>
+                    <div>Dernière MAJ : {{ last_update[:16].replace('T', ' ') if last_update else 'jamais' }}</div>
+                </div>
+            </div>
         </div>
     </div>
 
