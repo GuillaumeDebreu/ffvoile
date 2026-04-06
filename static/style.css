@@ -326,6 +326,38 @@ body {
 .upload-link { color: var(--blue); font-weight: 600; text-decoration: underline; }
 .upload-hint { font-size: 0.8rem; color: var(--gray-500); margin-top: 4px; }
 
+/* ─── Optional Uploads ───────────────────────────────────────── */
+.optional-uploads { margin-bottom: 16px; }
+
+.optional-label {
+    font-size: 0.8rem;
+    color: var(--gray-500);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.optional-row { display: flex; gap: 8px; margin-bottom: 8px; }
+
+.btn-optional {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 12px;
+    border: 1px dashed var(--gray-300);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--gray-500);
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-optional:hover { border-color: var(--blue); color: var(--blue); background: var(--sky); }
+.btn-optional.has-file { border-style: solid; border-color: var(--blue); color: var(--blue); background: var(--sky); }
+
+.file-icon { font-size: 0.8rem; font-weight: 600; color: var(--gray-500); margin-right: 4px; }
+
 .file-info {
     display: flex;
     align-items: center;
@@ -404,6 +436,84 @@ body {
     line-height: 1.7;
     font-size: 0.95rem;
 }
+
+/* ─── Preview Modal ──────────────────────────────────────────────── */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 22, 40, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+}
+
+.modal {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    max-width: 640px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--gray-200);
+}
+.modal-header h3 { font-size: 1.1rem; font-weight: 700; }
+
+.modal-close {
+    background: none; border: none; cursor: pointer;
+    font-size: 1.5rem; color: var(--gray-500); line-height: 1;
+}
+.modal-close:hover { color: var(--gray-900); }
+
+.modal-body { padding: 24px; }
+
+.preview-meta {
+    background: var(--gray-50);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    line-height: 1.8;
+}
+.preview-meta strong { color: var(--navy); }
+
+.preview-letter {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    white-space: pre-line;
+    color: var(--gray-700);
+}
+
+.preview-attachments {
+    margin-top: 16px;
+    display: flex; gap: 8px; flex-wrap: wrap;
+}
+
+.attachment-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--sky);
+    color: var(--blue);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.btn-preview {
+    background: none; border: none; cursor: pointer;
+    color: var(--gray-400); padding: 4px;
+    transition: color 0.2s;
+}
+.btn-preview:hover { color: var(--blue); }
 
 /* ─── Footer ─────────────────────────────────────────────────────── */
 .footer {

@@ -6,9 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
             const item = btn.parentElement;
             const wasOpen = item.classList.contains('open');
-            // Close all
             document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
-            // Toggle clicked
             if (!wasOpen) item.classList.add('open');
         });
     });
@@ -25,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!uploadZone) return; // Not on landing page
 
     let selectedFile = null;
+    let diplomaFile = null;
+    let letterFile = null;
 
     function updatePayBtn() {
         const hasFile = selectedFile !== null;
@@ -34,10 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     emailInput.addEventListener('input', updatePayBtn);
 
-    // Click to browse
+    // CV upload
     uploadZone.addEventListener('click', () => fileInput.click());
 
-    // Drag & drop
     uploadZone.addEventListener('dragover', e => {
         e.preventDefault();
         uploadZone.classList.add('dragover');
@@ -82,7 +81,53 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePayBtn();
     });
 
-    // ─── Access Flow (Stripe bypassed for now) ────────────────────
+    // ─── Optional uploads (diploma + letter) ────────────────────
+    function setupOptionalUpload(btnId, inputId, infoId, nameId, removeId, setter) {
+        const btn = document.getElementById(btnId);
+        const input = document.getElementById(inputId);
+        const info = document.getElementById(infoId);
+        const name = document.getElementById(nameId);
+        const remove = document.getElementById(removeId);
+
+        if (!btn) return;
+
+        btn.addEventListener('click', () => input.click());
+
+        input.addEventListener('change', () => {
+            const file = input.files[0];
+            if (!file) return;
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                alert('Seuls les fichiers PDF sont acceptés.');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Fichier trop volumineux (max 5 Mo).');
+                return;
+            }
+            setter(file);
+            name.textContent = file.name;
+            btn.classList.add('has-file');
+            info.style.display = 'flex';
+        });
+
+        remove.addEventListener('click', () => {
+            setter(null);
+            input.value = '';
+            btn.classList.remove('has-file');
+            info.style.display = 'none';
+        });
+    }
+
+    setupOptionalUpload(
+        'add-diploma-btn', 'diploma-file', 'diploma-info', 'diploma-name', 'diploma-remove',
+        f => { diplomaFile = f; }
+    );
+    setupOptionalUpload(
+        'add-letter-btn', 'letter-file', 'letter-info', 'letter-name', 'letter-remove',
+        f => { letterFile = f; }
+    );
+
+    // ─── Access Flow ────────────────────────────────────────────
     payBtn.addEventListener('click', async () => {
         if (!selectedFile || !emailInput.value.includes('@')) return;
 
@@ -90,10 +135,11 @@ document.addEventListener('DOMContentLoaded', () => {
         payBtn.textContent = 'Envoi en cours...';
 
         try {
-            // 1. Upload CV
             const formData = new FormData();
             formData.append('file', selectedFile);
             formData.append('email', emailInput.value);
+            if (diplomaFile) formData.append('diploma', diplomaFile);
+            if (letterFile) formData.append('letter', letterFile);
 
             const uploadRes = await fetch('/api/upload-cv', {
                 method: 'POST',
@@ -106,8 +152,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const { token } = await uploadRes.json();
-
-            // 2. Redirect to dashboard directly (Stripe will be added later)
             window.location.href = `/dashboard?token=${token}`;
 
         } catch (err) {

@@ -76,12 +76,28 @@
                             <th>Dept</th>
                             <th>Offre en cours</th>
                             <th>Statut</th>
+                            <th style="width:40px"></th>
                         </tr>
                     </thead>
                     <tbody id="ecoles-tbody">
-                        <tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Chargement...</td></tr>
+                        <tr><td colspan="7" style="text-align:center;padding:40px;color:#6b7280">Chargement...</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="modal-overlay" id="preview-modal" style="display:none">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="preview-title">Aperçu de la candidature</h3>
+                <button class="modal-close" id="preview-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-meta" id="preview-meta"></div>
+                <div class="preview-letter" id="preview-letter"></div>
+                <div class="preview-attachments" id="preview-attachments"></div>
             </div>
         </div>
     </div>
@@ -149,7 +165,7 @@
         const tbody = document.getElementById('ecoles-tbody');
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Aucune école trouvée</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#6b7280">Aucune école trouvée</td></tr>';
             return;
         }
 
@@ -169,6 +185,9 @@
                         : '<span style="color:#9ca3af">—</span>'
                     }</td>
                     <td><span class="status-badge ${status.css}">${status.label}</span></td>
+                    <td><button class="btn-preview" data-ecole-id="${row.id}" title="Aperçu candidature">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button></td>
                 </tr>
             `;
         }).join('');
@@ -180,6 +199,11 @@
                 cb.checked ? selected.add(id) : selected.delete(id);
                 updateSelection();
             });
+        });
+
+        // Bind preview buttons
+        tbody.querySelectorAll('.btn-preview').forEach(btn => {
+            btn.addEventListener('click', () => openPreview(parseInt(btn.dataset.ecoleId)));
         });
     }
 
@@ -278,6 +302,47 @@
     function truncate(str, len) {
         if (!str) return '';
         return str.length > len ? str.slice(0, len) + '...' : str;
+    }
+
+    // ─── Preview Modal ────────────────────────────────────────
+    const previewModal = document.getElementById('preview-modal');
+    document.getElementById('preview-close').addEventListener('click', () => {
+        previewModal.style.display = 'none';
+    });
+    previewModal.addEventListener('click', e => {
+        if (e.target === previewModal) previewModal.style.display = 'none';
+    });
+
+    async function openPreview(ecoleId) {
+        previewModal.style.display = 'flex';
+        document.getElementById('preview-meta').innerHTML = 'Chargement...';
+        document.getElementById('preview-letter').textContent = '';
+        document.getElementById('preview-attachments').innerHTML = '';
+
+        try {
+            const res = await fetch(`/api/preview-candidature?token=${TOKEN}&ecole_id=${ecoleId}`);
+            if (!res.ok) throw new Error('Erreur');
+            const data = await res.json();
+
+            document.getElementById('preview-title').textContent = `Candidature — ${data.ecole_nom}`;
+
+            let meta = `<strong>Destinataire :</strong> ${esc(data.ecole_email || 'Email non disponible')}`;
+            if (data.ecole_ville) meta += `<br><strong>Ville :</strong> ${esc(data.ecole_ville)}`;
+            if (data.offre_intitule) meta += `<br><strong>Offre :</strong> ${esc(data.offre_intitule)}`;
+            document.getElementById('preview-meta').innerHTML = meta;
+
+            document.getElementById('preview-letter').textContent = data.cover_letter;
+
+            let attachments = '';
+            if (data.has_cv) attachments += '<span class="attachment-tag">CV.pdf</span>';
+            if (data.has_diploma) attachments += '<span class="attachment-tag">Diplôme.pdf</span>';
+            if (data.has_letter) attachments += '<span class="attachment-tag">Lettre perso.pdf</span>';
+            document.getElementById('preview-attachments').innerHTML =
+                attachments ? '<strong style="font-size:0.8rem;color:#6b7280">Pièces jointes :</strong> ' + attachments : '';
+
+        } catch (err) {
+            document.getElementById('preview-meta').innerHTML = 'Erreur lors du chargement.';
+        }
     }
 
     // Init + auto-refresh every 30s for tracking updates

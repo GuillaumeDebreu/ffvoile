@@ -133,6 +133,8 @@ def send_batch(user_id: str, ecole_ids: list[int]) -> dict:
             ecole_nom=ecole["nom"],
             ecole_ville=ecole["ville"],
             offre_intitule=offre["intitule"] if offre else None,
+            has_diploma=bool(user.get("diploma_path")),
+            has_user_letter=bool(user.get("letter_path")),
         )
 
         # Send email

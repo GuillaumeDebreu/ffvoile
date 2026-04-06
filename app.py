@@ -38,6 +38,8 @@ def init_app_db():
             email TEXT UNIQUE NOT NULL,
             token TEXT UNIQUE NOT NULL,
             cv_path TEXT,
+            diploma_path TEXT,
+            letter_path TEXT,
             stripe_session_id TEXT,
             paid INTEGER DEFAULT 0,
             created_at TEXT NOT NULL
@@ -150,7 +152,12 @@ async def landing(request: Request):
 # ─── CV Upload ───────────────────────────────────────────────────────────
 
 @app.post("/api/upload-cv")
-async def upload_cv(file: UploadFile = File(...), email: str = Form("")):
+async def upload_cv(
+    file: UploadFile = File(...),
+    email: str = Form(""),
+    diploma: UploadFile = File(None),
+    letter: UploadFile = File(None),
+):
     if not email or "@" not in email:
         raise HTTPException(400, "Email invalide")
 
@@ -158,26 +165,46 @@ async def upload_cv(file: UploadFile = File(...), email: str = Form("")):
         raise HTTPException(400, "Seuls les fichiers PDF sont acceptés")
 
     content = await file.read()
-    if len(content) > 5 * 1024 * 1024:  # 5MB max
+    if len(content) > 5 * 1024 * 1024:
         raise HTTPException(400, "Fichier trop volumineux (max 5 Mo)")
 
-    # Save file
+    # Save CV
     user_id = str(uuid.uuid4())
     token = secrets.token_urlsafe(32)
-    filename = f"{user_id}.pdf"
-    filepath = UPLOAD_DIR / filename
+    filepath = UPLOAD_DIR / f"{user_id}.pdf"
     filepath.write_bytes(content)
+
+    # Save optional diploma
+    diploma_path = None
+    if diploma and diploma.filename:
+        diploma_content = await diploma.read()
+        if len(diploma_content) <= 5 * 1024 * 1024:
+            dp = UPLOAD_DIR / f"{user_id}_diploma.pdf"
+            dp.write_bytes(diploma_content)
+            diploma_path = str(dp)
+
+    # Save optional cover letter
+    letter_path = None
+    if letter and letter.filename:
+        letter_content = await letter.read()
+        if len(letter_content) <= 5 * 1024 * 1024:
+            lp = UPLOAD_DIR / f"{user_id}_letter.pdf"
+            lp.write_bytes(letter_content)
+            letter_path = str(lp)
 
     # Create user record
     conn = get_connection()
     try:
         conn.execute("""
-            INSERT INTO users (id, email, token, cv_path, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO users (id, email, token, cv_path, diploma_path, letter_path, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(email) DO UPDATE SET
                 cv_path = excluded.cv_path,
+                diploma_path = COALESCE(excluded.diploma_path, users.diploma_path),
+                letter_path = COALESCE(excluded.letter_path, users.letter_path),
                 token = excluded.token
-        """, (user_id, email, token, str(filepath), datetime.now().isoformat()))
+        """, (user_id, email, token, str(filepath), diploma_path, letter_path,
+              datetime.now().isoformat()))
         conn.commit()
 
         # Get user id (might be existing user)
@@ -362,6 +389,50 @@ async def get_ecoles(token: str = "", departement: str = "", region: str = "",
     conn.close()
 
     return [dict(r) for r in rows]
+
+
+# ─── Preview candidature ─────────────────────────────────────────────
+
+@app.get("/api/preview-candidature")
+async def preview_candidature(token: str = "", ecole_id: int = 0):
+    conn = get_connection()
+    user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+    if not user or not user["paid"]:
+        conn.close()
+        raise HTTPException(403, "Accès non autorisé")
+
+    ecole = conn.execute("SELECT * FROM ecoles WHERE id = ?", (ecole_id,)).fetchone()
+    if not ecole:
+        conn.close()
+        raise HTTPException(404, "École non trouvée")
+
+    offre = conn.execute(
+        "SELECT intitule FROM offres WHERE ecole_id = ? ORDER BY date_publication DESC LIMIT 1",
+        (ecole_id,)
+    ).fetchone()
+
+    conn.close()
+
+    from services.cover_letter import generate_cover_letter
+    letter = generate_cover_letter(
+        user_email=user["email"],
+        ecole_nom=ecole["nom"],
+        ecole_ville=ecole["ville"],
+        offre_intitule=offre["intitule"] if offre else None,
+        has_diploma=bool(user["diploma_path"]),
+        has_user_letter=bool(user["letter_path"]),
+    )
+
+    return {
+        "ecole_nom": ecole["nom"],
+        "ecole_ville": ecole["ville"],
+        "ecole_email": ecole["email"],
+        "offre_intitule": offre["intitule"] if offre else None,
+        "cover_letter": letter,
+        "has_cv": bool(user["cv_path"]),
+        "has_diploma": bool(user["diploma_path"]),
+        "has_letter": bool(user["letter_path"]),
+    }
 
 
 # ─── Send CV to selected schools ─────────────────────────────────────
