@@ -1,0 +1,5 @@
+requests>=2.31
+beautifulsoup4>=4.12
+lxml>=5.0
+thefuzz>=0.22
+python-Levenshtein>=0.25
