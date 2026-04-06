@@ -10,7 +10,7 @@ from datetime import datetime
 import stripe
 from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from scraping.database import get_connection, init_db
@@ -46,6 +46,21 @@ def init_app_db():
             paid INTEGER DEFAULT 0,
             created_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS candidatures (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL REFERENCES users(id),
+            ecole_id INTEGER NOT NULL REFERENCES ecoles(id),
+            status TEXT NOT NULL DEFAULT 'pending',
+            sent_at TEXT,
+            opened_at TEXT,
+            replied_at TEXT,
+            created_at TEXT NOT NULL,
+            UNIQUE(user_id, ecole_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_candidatures_user ON candidatures(user_id);
+        CREATE INDEX IF NOT EXISTS idx_candidatures_status ON candidatures(status);
     """)
     conn.commit()
     conn.close()
@@ -261,6 +276,104 @@ async def get_ecoles(token: str = "", departement: str = "", region: str = "",
     conn.close()
 
     return [dict(r) for r in rows]
+
+
+# ─── Send CV to selected schools ─────────────────────────────────────
+
+@app.post("/api/send-cv")
+async def send_cv(request: Request):
+    data = await request.json()
+    token = data.get("token")
+    ecole_ids = data.get("ecole_ids", [])
+
+    if not token or not ecole_ids:
+        raise HTTPException(400, "Données manquantes")
+
+    conn = get_connection()
+    user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+    conn.close()
+
+    if not user or not user["paid"]:
+        raise HTTPException(403, "Accès non autorisé")
+
+    from services.email_sender import send_batch
+    results = send_batch(user["id"], ecole_ids)
+    return results
+
+
+# ─── Candidatures status ─────────────────────────────────────────────
+
+@app.get("/api/candidatures")
+async def get_candidatures(token: str = ""):
+    conn = get_connection()
+    user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+    if not user or not user["paid"]:
+        conn.close()
+        raise HTTPException(403, "Accès non autorisé")
+
+    rows = conn.execute("""
+        SELECT c.ecole_id, c.status, c.sent_at, c.opened_at, c.replied_at
+        FROM candidatures c
+        WHERE c.user_id = ?
+    """, (user["id"],)).fetchall()
+    conn.close()
+
+    return {r["ecole_id"]: dict(r) for r in rows}
+
+
+# ─── Email open tracking pixel ───────────────────────────────────────
+
+# 1x1 transparent PNG
+PIXEL_PNG = (
+    b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+    b'\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89'
+    b'\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01'
+    b'\r\n\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
+)
+
+
+@app.get("/track/{candidature_id}.png")
+async def track_open(candidature_id: int):
+    conn = get_connection()
+    cand = conn.execute(
+        "SELECT * FROM candidatures WHERE id = ?", (candidature_id,)
+    ).fetchone()
+
+    if cand and cand["status"] == "sent":
+        conn.execute(
+            "UPDATE candidatures SET status = 'opened', opened_at = datetime('now') WHERE id = ?",
+            (candidature_id,)
+        )
+        conn.commit()
+
+    conn.close()
+
+    return Response(
+        content=PIXEL_PNG,
+        media_type="image/png",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+# ─── PDF Report download ─────────────────────────────────────────────
+
+@app.get("/api/report")
+async def download_report(token: str = ""):
+    conn = get_connection()
+    user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+    conn.close()
+
+    if not user or not user["paid"]:
+        raise HTTPException(403, "Accès non autorisé")
+
+    from services.pdf_report import generate_report
+    pdf_bytes = generate_report(user["id"])
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=voilecv-rapport.pdf"},
+    )
 
 
 if __name__ == "__main__":

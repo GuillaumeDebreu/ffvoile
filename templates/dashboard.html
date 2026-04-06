@@ -47,9 +47,14 @@
                     </label>
                     <span class="selection-count" id="selection-count"></span>
                 </div>
-                <button class="btn btn-primary btn-sm" id="send-btn" disabled>
-                    Envoyer mon CV aux écoles sélectionnées
-                </button>
+                <div style="display:flex;gap:8px">
+                    <a href="/api/report?token={{ token }}" class="btn btn-sm" style="background:var(--gray-200);color:var(--gray-700);text-decoration:none">
+                        Rapport PDF
+                    </a>
+                    <button class="btn btn-primary btn-sm" id="send-btn" disabled>
+                        Envoyer mon CV aux écoles sélectionnées
+                    </button>
+                </div>
             </div>
 
             <!-- Table -->
@@ -77,13 +82,28 @@
     const TOKEN = '{{ token }}';
 
     let allData = [];
+    let candidatures = {};
     let selected = new Set();
 
-    async function loadEcoles(params = {}) {
-        const qs = new URLSearchParams({ token: TOKEN, ...params });
-        const res = await fetch(`/api/ecoles?${qs}`);
-        if (!res.ok) return;
-        allData = await res.json();
+    const STATUS_CONFIG = {
+        'pending':     { label: 'En attente',     css: 'status-non-envoye' },
+        'sent':        { label: 'Envoyé',         css: 'status-envoye' },
+        'send_failed': { label: 'Échec envoi',    css: 'status-non-envoye' },
+        'opened':      { label: 'Ouvert',         css: 'status-ouvert' },
+        'replied':     { label: 'Réponse reçue',  css: 'status-reponse' },
+    };
+
+    async function loadData() {
+        const [ecolesRes, candRes] = await Promise.all([
+            fetch(`/api/ecoles?token=${TOKEN}`),
+            fetch(`/api/candidatures?token=${TOKEN}`),
+        ]);
+        if (ecolesRes.ok) {
+            allData = await ecolesRes.json();
+        }
+        if (candRes.ok) {
+            candidatures = await candRes.json();
+        }
         renderTable(allData);
         populateFilters(allData);
     }
@@ -95,7 +115,6 @@
         const deptSelect = document.getElementById('filter-dept');
         const regionSelect = document.getElementById('filter-region');
 
-        // Keep first option, rebuild rest
         if (deptSelect.options.length <= 1) {
             depts.forEach(d => {
                 const opt = document.createElement('option');
@@ -112,6 +131,12 @@
         }
     }
 
+    function getStatus(ecoleId) {
+        const c = candidatures[ecoleId];
+        if (!c) return { label: 'Non envoyé', css: 'status-non-envoye' };
+        return STATUS_CONFIG[c.status] || { label: c.status, css: 'status-non-envoye' };
+    }
+
     function renderTable(data) {
         const tbody = document.getElementById('ecoles-tbody');
 
@@ -123,9 +148,11 @@
         tbody.innerHTML = data.map(row => {
             const hasOffre = row.offre_id !== null;
             const checked = selected.has(row.id) ? 'checked' : '';
+            const status = getStatus(row.id);
+            const isSent = candidatures[row.id] && ['sent','opened','replied'].includes(candidatures[row.id].status);
             return `
                 <tr class="${hasOffre ? 'has-offre' : ''}">
-                    <td><input type="checkbox" class="row-check" data-id="${row.id}" ${checked}></td>
+                    <td><input type="checkbox" class="row-check" data-id="${row.id}" ${checked} ${isSent ? 'disabled' : ''}></td>
                     <td><strong>${esc(row.nom)}</strong></td>
                     <td>${esc(row.ville || '—')}</td>
                     <td>${esc(row.departement || '—')}</td>
@@ -133,13 +160,13 @@
                         ? `<a href="${esc(row.url_offre)}" target="_blank" class="offre-badge">${esc(truncate(row.offre_intitule, 35))}</a>`
                         : '<span style="color:#9ca3af">—</span>'
                     }</td>
-                    <td><span class="status-badge status-non-envoye">Non envoyé</span></td>
+                    <td><span class="status-badge ${status.css}">${status.label}</span></td>
                 </tr>
             `;
         }).join('');
 
         // Re-bind checkboxes
-        tbody.querySelectorAll('.row-check').forEach(cb => {
+        tbody.querySelectorAll('.row-check:not(:disabled)').forEach(cb => {
             cb.addEventListener('change', () => {
                 const id = parseInt(cb.dataset.id);
                 cb.checked ? selected.add(id) : selected.delete(id);
@@ -159,8 +186,7 @@
 
     // Select all
     document.getElementById('select-all').addEventListener('change', e => {
-        const checks = document.querySelectorAll('.row-check');
-        checks.forEach(cb => {
+        document.querySelectorAll('.row-check:not(:disabled)').forEach(cb => {
             cb.checked = e.target.checked;
             const id = parseInt(cb.dataset.id);
             e.target.checked ? selected.add(id) : selected.delete(id);
@@ -198,10 +224,39 @@
     });
 
     // Send CV button
-    document.getElementById('send-btn').addEventListener('click', () => {
+    document.getElementById('send-btn').addEventListener('click', async () => {
         const count = selected.size;
         if (count === 0) return;
-        alert(`Fonctionnalité d'envoi en cours de développement.\n\n${count} école(s) sélectionnée(s) recevront ton CV personnalisé.`);
+
+        if (!confirm(`Envoyer ton CV personnalisé à ${count} école(s) ?`)) return;
+
+        const btn = document.getElementById('send-btn');
+        btn.disabled = true;
+        btn.textContent = 'Envoi en cours...';
+
+        try {
+            const res = await fetch('/api/send-cv', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: TOKEN, ecole_ids: [...selected] }),
+            });
+
+            const result = await res.json();
+
+            if (res.ok) {
+                const msg = `Résultat :\n- ${result.sent} envoyé(s)\n- ${result.skipped} ignoré(s)\n- ${result.failed} échoué(s)`;
+                alert(msg);
+                selected.clear();
+                await loadData();  // Refresh
+            } else {
+                alert('Erreur: ' + (result.detail || 'Erreur inconnue'));
+            }
+        } catch (err) {
+            alert('Erreur réseau: ' + err.message);
+        }
+
+        btn.disabled = false;
+        updateSelection();
     });
 
     // Helpers
@@ -217,8 +272,9 @@
         return str.length > len ? str.slice(0, len) + '...' : str;
     }
 
-    // Init
-    loadEcoles();
+    // Init + auto-refresh every 30s for tracking updates
+    loadData();
+    setInterval(loadData, 30000);
     </script>
 </body>
 </html>
