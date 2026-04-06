@@ -493,6 +493,40 @@ body {
     color: var(--gray-700);
 }
 
+.preview-letter-edit {
+    width: 100%;
+    min-height: 220px;
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    color: var(--gray-700);
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+.preview-letter-edit:focus {
+    outline: none;
+    border-color: var(--blue-light);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.preview-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+}
+
+.save-status {
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-right: auto;
+}
+
 .preview-attachments {
     margin-top: 16px;
     display: flex; gap: 8px; flex-wrap: wrap;

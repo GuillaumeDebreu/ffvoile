@@ -50,6 +50,7 @@ def init_app_db():
             user_id TEXT NOT NULL REFERENCES users(id),
             ecole_id INTEGER NOT NULL REFERENCES ecoles(id),
             status TEXT NOT NULL DEFAULT 'pending',
+            custom_letter TEXT,
             sent_at TEXT,
             opened_at TEXT,
             replied_at TEXT,
@@ -60,6 +61,10 @@ def init_app_db():
         CREATE INDEX IF NOT EXISTS idx_candidatures_user ON candidatures(user_id);
         CREATE INDEX IF NOT EXISTS idx_candidatures_status ON candidatures(status);
     """)
+    # Migration: add custom_letter column if missing
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(candidatures)").fetchall()]
+    if "custom_letter" not in cols:
+        conn.execute("ALTER TABLE candidatures ADD COLUMN custom_letter TEXT")
     conn.commit()
     conn.close()
 
@@ -394,7 +399,7 @@ async def get_ecoles(token: str = "", departement: str = "", region: str = "",
 # ─── Preview candidature ─────────────────────────────────────────────
 
 @app.get("/api/preview-candidature")
-async def preview_candidature(token: str = "", ecole_id: int = 0):
+async def preview_candidature(token: str = "", ecole_id: int = 0, regenerate: int = 0):
     conn = get_connection()
     user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
     if not user or not user["paid"]:
@@ -407,21 +412,33 @@ async def preview_candidature(token: str = "", ecole_id: int = 0):
         raise HTTPException(404, "École non trouvée")
 
     offre = conn.execute(
-        "SELECT intitule FROM offres WHERE ecole_id = ? ORDER BY date_publication DESC LIMIT 1",
+        "SELECT intitule, description FROM offres WHERE ecole_id = ? ORDER BY date_publication DESC LIMIT 1",
         (ecole_id,)
+    ).fetchone()
+
+    # Check if user already has a saved custom letter for this school
+    cand = conn.execute(
+        "SELECT id, custom_letter FROM candidatures WHERE user_id = ? AND ecole_id = ?",
+        (user["id"], ecole_id)
     ).fetchone()
 
     conn.close()
 
-    from services.cover_letter import generate_cover_letter
-    letter = generate_cover_letter(
-        user_email=user["email"],
-        ecole_nom=ecole["nom"],
-        ecole_ville=ecole["ville"],
-        offre_intitule=offre["intitule"] if offre else None,
-        has_diploma=bool(user["diploma_path"]),
-        has_user_letter=bool(user["letter_path"]),
-    )
+    # Use saved letter if exists (unless regenerating)
+    if cand and cand["custom_letter"] and not regenerate:
+        letter = cand["custom_letter"]
+    else:
+        from services.cover_letter import generate_cover_letter
+        letter = generate_cover_letter(
+            user_email=user["email"],
+            ecole_nom=ecole["nom"],
+            ecole_ville=ecole["ville"],
+            offre_intitule=offre["intitule"] if offre else None,
+            offre_description=offre["description"] if offre else None,
+            has_diploma=bool(user["diploma_path"]),
+            has_user_letter=bool(user["letter_path"]),
+            cv_path=user["cv_path"],
+        )
 
     return {
         "ecole_nom": ecole["nom"],
@@ -433,6 +450,46 @@ async def preview_candidature(token: str = "", ecole_id: int = 0):
         "has_diploma": bool(user["diploma_path"]),
         "has_letter": bool(user["letter_path"]),
     }
+
+
+# ─── Save custom cover letter ────────────────────────────────────────
+
+@app.post("/api/save-letter")
+async def save_letter(request: Request):
+    data = await request.json()
+    token = data.get("token")
+    ecole_id = data.get("ecole_id")
+    letter = data.get("letter", "").strip()
+
+    if not token or not ecole_id or not letter:
+        raise HTTPException(400, "Données manquantes")
+
+    conn = get_connection()
+    user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+    if not user or not user["paid"]:
+        conn.close()
+        raise HTTPException(403, "Accès non autorisé")
+
+    # Upsert candidature with custom letter (create if doesn't exist)
+    existing = conn.execute(
+        "SELECT id FROM candidatures WHERE user_id = ? AND ecole_id = ?",
+        (user["id"], ecole_id)
+    ).fetchone()
+
+    if existing:
+        conn.execute(
+            "UPDATE candidatures SET custom_letter = ? WHERE id = ?",
+            (letter, existing["id"])
+        )
+    else:
+        conn.execute("""
+            INSERT INTO candidatures (user_id, ecole_id, status, custom_letter, created_at)
+            VALUES (?, ?, 'draft', ?, datetime('now'))
+        """, (user["id"], ecole_id, letter))
+
+    conn.commit()
+    conn.close()
+    return {"ok": True}
 
 
 # ─── Send CV to selected schools ─────────────────────────────────────

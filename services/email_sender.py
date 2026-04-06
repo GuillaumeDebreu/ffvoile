@@ -1,7 +1,6 @@
 """Email sending via Resend API with pixel tracking."""
 
 import os
-import base64
 from pathlib import Path
 
 from scraping.database import get_connection
@@ -14,8 +13,9 @@ def send_candidature_email(
     cv_path: str,
     candidature_id: int,
     user_email: str,
+    diploma_path: str = None,
 ) -> bool:
-    """Send a candidature email with CV attachment and tracking pixel.
+    """Send a candidature email with CV attachment, optional diploma, and tracking pixel.
 
     Returns True on success, False on failure.
     """
@@ -51,6 +51,15 @@ def send_candidature_email(
             "filename": "CV.pdf",
             "content": list(cv_bytes),
         })
+
+    if diploma_path:
+        diploma_file = Path(diploma_path)
+        if diploma_file.exists():
+            diploma_bytes = diploma_file.read_bytes()
+            attachments.append({
+                "filename": "Diplome.pdf",
+                "content": list(diploma_bytes),
+            })
 
     try:
         params = {
@@ -97,10 +106,10 @@ def send_batch(user_id: str, ecole_ids: list[int]) -> dict:
 
         # Check if already sent
         existing = conn.execute(
-            "SELECT id FROM candidatures WHERE user_id = ? AND ecole_id = ?",
+            "SELECT id, custom_letter, status FROM candidatures WHERE user_id = ? AND ecole_id = ?",
             (user_id, ecole_id)
         ).fetchone()
-        if existing:
+        if existing and existing["status"] in ("sent", "opened", "replied"):
             results["skipped"] += 1
             results["details"].append({
                 "ecole_id": ecole_id,
@@ -111,15 +120,25 @@ def send_batch(user_id: str, ecole_ids: list[int]) -> dict:
 
         # Get active offer for this school
         offre = conn.execute(
-            "SELECT intitule FROM offres WHERE ecole_id = ? ORDER BY date_publication DESC LIMIT 1",
+            "SELECT intitule, description FROM offres WHERE ecole_id = ? ORDER BY date_publication DESC LIMIT 1",
             (ecole_id,)
         ).fetchone()
 
-        # Create candidature record
-        conn.execute("""
-            INSERT INTO candidatures (user_id, ecole_id, status, created_at)
-            VALUES (?, ?, 'pending', datetime('now'))
-        """, (user_id, ecole_id))
+        # Use saved custom letter if available
+        custom_letter = existing["custom_letter"] if existing and existing["custom_letter"] else None
+
+        if existing:
+            # Update existing draft candidature to pending
+            conn.execute(
+                "UPDATE candidatures SET status = 'pending' WHERE id = ?",
+                (existing["id"],)
+            )
+        else:
+            # Create candidature record
+            conn.execute("""
+                INSERT INTO candidatures (user_id, ecole_id, status, created_at)
+                VALUES (?, ?, 'pending', datetime('now'))
+            """, (user_id, ecole_id))
         conn.commit()
 
         cand = conn.execute(
@@ -127,15 +146,20 @@ def send_batch(user_id: str, ecole_ids: list[int]) -> dict:
             (user_id, ecole_id)
         ).fetchone()
 
-        # Generate cover letter
-        letter = generate_cover_letter(
-            user_email=user["email"],
-            ecole_nom=ecole["nom"],
-            ecole_ville=ecole["ville"],
-            offre_intitule=offre["intitule"] if offre else None,
-            has_diploma=bool(user.get("diploma_path")),
-            has_user_letter=bool(user.get("letter_path")),
-        )
+        # Generate or use saved cover letter
+        if custom_letter:
+            letter = custom_letter
+        else:
+            letter = generate_cover_letter(
+                user_email=user["email"],
+                ecole_nom=ecole["nom"],
+                ecole_ville=ecole["ville"],
+                offre_intitule=offre["intitule"] if offre else None,
+                offre_description=offre["description"] if offre else None,
+                has_diploma=bool(user.get("diploma_path")),
+                has_user_letter=bool(user.get("letter_path")),
+                cv_path=user["cv_path"],
+            )
 
         # Send email
         success = send_candidature_email(
@@ -145,6 +169,7 @@ def send_batch(user_id: str, ecole_ids: list[int]) -> dict:
             cv_path=user["cv_path"],
             candidature_id=cand["id"],
             user_email=user["email"],
+            diploma_path=user.get("diploma_path"),
         )
 
         if success:

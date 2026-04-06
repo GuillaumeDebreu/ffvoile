@@ -96,8 +96,17 @@
             </div>
             <div class="modal-body">
                 <div class="preview-meta" id="preview-meta"></div>
-                <div class="preview-letter" id="preview-letter"></div>
+                <textarea class="preview-letter-edit" id="preview-letter-edit" rows="12"></textarea>
                 <div class="preview-attachments" id="preview-attachments"></div>
+                <div class="preview-actions">
+                    <span class="save-status" id="save-status"></span>
+                    <button class="btn btn-sm" id="preview-regenerate" style="background:var(--gray-200);color:var(--gray-700)">
+                        Régénérer
+                    </button>
+                    <button class="btn btn-primary btn-sm" id="preview-save">
+                        Sauvegarder
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -110,6 +119,7 @@
     let selected = new Set();
 
     const STATUS_CONFIG = {
+        'draft':       { label: 'Brouillon',      css: 'status-non-envoye' },
         'pending':     { label: 'En attente',     css: 'status-non-envoye' },
         'sent':        { label: 'Envoyé',         css: 'status-envoye' },
         'send_failed': { label: 'Échec envoi',    css: 'status-non-envoye' },
@@ -306,6 +316,8 @@
 
     // ─── Preview Modal ────────────────────────────────────────
     const previewModal = document.getElementById('preview-modal');
+    let currentPreviewEcoleId = null;
+
     document.getElementById('preview-close').addEventListener('click', () => {
         previewModal.style.display = 'none';
     });
@@ -314,10 +326,12 @@
     });
 
     async function openPreview(ecoleId) {
+        currentPreviewEcoleId = ecoleId;
         previewModal.style.display = 'flex';
         document.getElementById('preview-meta').innerHTML = 'Chargement...';
-        document.getElementById('preview-letter').textContent = '';
+        document.getElementById('preview-letter-edit').value = '';
         document.getElementById('preview-attachments').innerHTML = '';
+        document.getElementById('save-status').textContent = '';
 
         try {
             const res = await fetch(`/api/preview-candidature?token=${TOKEN}&ecole_id=${ecoleId}`);
@@ -331,7 +345,7 @@
             if (data.offre_intitule) meta += `<br><strong>Offre :</strong> ${esc(data.offre_intitule)}`;
             document.getElementById('preview-meta').innerHTML = meta;
 
-            document.getElementById('preview-letter').textContent = data.cover_letter;
+            document.getElementById('preview-letter-edit').value = data.cover_letter;
 
             let attachments = '';
             if (data.has_cv) attachments += '<span class="attachment-tag">CV.pdf</span>';
@@ -344,6 +358,66 @@
             document.getElementById('preview-meta').innerHTML = 'Erreur lors du chargement.';
         }
     }
+
+    // Save custom letter
+    document.getElementById('preview-save').addEventListener('click', async () => {
+        const letter = document.getElementById('preview-letter-edit').value.trim();
+        if (!letter || !currentPreviewEcoleId) return;
+
+        const btn = document.getElementById('preview-save');
+        const status = document.getElementById('save-status');
+        btn.disabled = true;
+        btn.textContent = 'Sauvegarde...';
+
+        try {
+            const res = await fetch('/api/save-letter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: TOKEN, ecole_id: currentPreviewEcoleId, letter }),
+            });
+            if (res.ok) {
+                status.textContent = '✓ Sauvegardé';
+                status.style.color = '#16a34a';
+            } else {
+                status.textContent = 'Erreur';
+                status.style.color = '#dc2626';
+            }
+        } catch (err) {
+            status.textContent = 'Erreur réseau';
+            status.style.color = '#dc2626';
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Sauvegarder';
+        setTimeout(() => { status.textContent = ''; }, 3000);
+    });
+
+    // Regenerate letter
+    document.getElementById('preview-regenerate').addEventListener('click', async () => {
+        if (!currentPreviewEcoleId) return;
+
+        const btn = document.getElementById('preview-regenerate');
+        const status = document.getElementById('save-status');
+        btn.disabled = true;
+        btn.textContent = 'Régénération...';
+        status.textContent = '';
+
+        try {
+            const res = await fetch(`/api/preview-candidature?token=${TOKEN}&ecole_id=${currentPreviewEcoleId}&regenerate=1`);
+            if (!res.ok) throw new Error('Erreur');
+            const data = await res.json();
+            document.getElementById('preview-letter-edit').value = data.cover_letter;
+            status.textContent = '✓ Nouvelle version générée';
+            status.style.color = '#16a34a';
+        } catch (err) {
+            status.textContent = 'Erreur lors de la régénération';
+            status.style.color = '#dc2626';
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Régénérer';
+        setTimeout(() => { status.textContent = ''; }, 3000);
+    });
 
     // Init + auto-refresh every 30s for tracking updates
     loadData();
