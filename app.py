@@ -69,17 +69,50 @@ def init_app_db():
 init_app_db()
 
 # Auto-scrape if database is empty (first deploy)
+import threading, traceback
+
 _conn = get_connection()
 _offre_count = _conn.execute("SELECT COUNT(*) FROM offres").fetchone()[0]
 _conn.close()
+print(f"[STARTUP] offres count = {_offre_count}")
+
 if _offre_count == 0:
-    import threading
     def _initial_scrape():
-        from scraping.scrape_offres import scrape_all_offers
-        print("[STARTUP] Database empty, running initial scrape...")
-        scrape_all_offers(max_detail_pages=None)
-        print("[STARTUP] Initial scrape complete.")
+        try:
+            from scraping.scrape_offres import scrape_all_offers
+            print("[STARTUP] Database empty, running initial scrape...")
+            scrape_all_offers(max_detail_pages=None)
+            print("[STARTUP] Initial scrape complete.")
+        except Exception as e:
+            print(f"[STARTUP ERROR] Scrape failed: {e}")
+            traceback.print_exc()
     threading.Thread(target=_initial_scrape, daemon=True).start()
+
+
+# ─── Manual scrape trigger ───────────────────────────────────────────────
+
+@app.get("/api/scrape")
+async def trigger_scrape():
+    """Trigger a manual scrape. Visit this URL to populate the database."""
+    conn = get_connection()
+    count = conn.execute("SELECT COUNT(*) FROM offres").fetchone()[0]
+    conn.close()
+
+    if count > 0:
+        return {"status": "already_populated", "offres": count}
+
+    def _bg_scrape():
+        try:
+            from scraping.scrape_offres import scrape_all_offers
+            print("[MANUAL] Starting scrape...")
+            scrape_all_offers(max_detail_pages=None)
+            print("[MANUAL] Scrape complete.")
+        except Exception as e:
+            print(f"[MANUAL ERROR] {e}")
+            traceback.print_exc()
+
+    threading.Thread(target=_bg_scrape, daemon=True).start()
+    return {"status": "scraping_started", "message": "Rafraîchis le dashboard dans 2-3 minutes."}
 
 
 # ─── Landing Page ────────────────────────────────────────────────────────
