@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const { token } = await uploadRes.json();
-            window.location.href = `/dashboard?token=${token}`;
+            window.location.href = `/confirmation?token=${token}`;
 
         } catch (err) {
             alert('Erreur: ' + err.message);

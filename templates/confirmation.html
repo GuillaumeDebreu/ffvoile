@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C'est parti ! — VoileCV</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container nav-content">
+            <a href="/" class="logo">VoileCV</a>
+        </div>
+    </nav>
+
+    <section class="confirmation">
+        <div class="container">
+            <div class="confirmation-card">
+                <div class="confirmation-icon">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                </div>
+                <h1>Ton CV est prêt à être envoyé !</h1>
+                <p class="confirmation-sub">Ton compte est créé et tes documents sont uploadés. Tu peux maintenant accéder à ton dashboard pour sélectionner les écoles et envoyer tes candidatures.</p>
+
+                <div class="confirmation-steps">
+                    <div class="confirmation-step done">
+                        <span class="step-check">&#10003;</span>
+                        <span>CV uploadé</span>
+                    </div>
+                    <div class="confirmation-step done">
+                        <span class="step-check">&#10003;</span>
+                        <span>Compte créé</span>
+                    </div>
+                    <div class="confirmation-step next">
+                        <span class="step-num">3</span>
+                        <span>Choisis tes écoles et envoie</span>
+                    </div>
+                </div>
+
+                <a href="/dashboard?token={{ token }}" class="btn btn-primary btn-lg" style="margin-top:24px">
+                    Accéder à mon dashboard &rarr;
+                </a>
+
+                <p class="confirmation-hint">
+                    Garde ce lien, c'est ta clé d'accès :<br>
+                    <code class="confirmation-link">{{ base_url }}/dashboard?token={{ token }}</code>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>&copy; 2026 VoileCV. Fait avec passion pour les passionnés de voile.</p>
+                <div class="footer-links">
+                    <a href="/mentions-legales">Mentions légales</a>
+                    <a href="/cgv">CGV</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

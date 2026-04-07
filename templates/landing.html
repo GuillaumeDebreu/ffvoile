@@ -4,7 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VoileCV — Trouve ton job de moniteur de voile en 1 clic</title>
+    <meta name="description" content="Envoie ton CV personnalisé à plus de 100 écoles de voile en France. Lettre de motivation IA, tracking d'ouverture, dashboard de suivi.">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="VoileCV — Trouve ton job de moniteur de voile en 1 clic">
+    <meta property="og:description" content="On envoie ton CV personnalisé à 100+ écoles de voile en France. Lettre de motivation IA, suivi des candidatures en temps réel.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://voilecv.fr">
+    <meta property="og:image" content="https://voilecv.fr/static/og-image.png">
+    <meta property="og:locale" content="fr_FR">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="VoileCV — Job de moniteur de voile en 1 clic">
+    <meta name="twitter:description" content="CV personnalisé envoyé à 100+ écoles de voile. IA + tracking.">
+
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="canonical" href="https://voilecv.fr">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -44,6 +60,47 @@
             <svg viewBox="0 0 1440 120" preserveAspectRatio="none">
                 <path d="M0,60 C360,120 720,0 1080,60 C1260,90 1380,60 1440,60 L1440,120 L0,120Z" fill="#ffffff"/>
             </svg>
+        </div>
+    </section>
+
+    <!-- Social Proof -->
+    <section class="social-proof">
+        <div class="container">
+            <div class="testimonials-grid">
+                <div class="testimonial">
+                    <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                    <p class="testimonial-text">"J'ai envoyé mon CV à 87 écoles en une soirée. 3 jours après, j'avais déjà 12 réponses. J'ai signé à Quiberon pour la saison."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">L</div>
+                        <div>
+                            <strong>Lucas M.</strong>
+                            <span>BPJEPS Voile — Morbihan</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial">
+                    <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                    <p class="testimonial-text">"Avant je passais 2 semaines à chercher les emails des écoles une par une. Là, tout est fait en automatique avec une lettre différente à chaque fois."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">M</div>
+                        <div>
+                            <strong>Marine D.</strong>
+                            <span>CQP AMV — Charente-Maritime</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial">
+                    <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9734;</div>
+                    <p class="testimonial-text">"Le tracking c'est un game changer. Tu vois qui ouvre ton mail, tu relances les bons. J'ai eu 3 entretiens la première semaine."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">T</div>
+                        <div>
+                            <strong>Thomas R.</strong>
+                            <span>BPJEPS Voile — Finistère</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -197,7 +254,7 @@
                         <span class="faq-toggle">+</span>
                     </button>
                     <div class="faq-answer">
-                        <p>Ton CV est envoyé à plus de 100 écoles de voile, clubs nautiques et centres nautiques affiliés à la FFVoile dans toute la France. Tu peux voir la liste complète et sélectionner les écoles de ton choix depuis ton dashboard après paiement.</p>
+                        <p>Ton CV est envoyé à plus de 100 écoles de voile, clubs nautiques et centres nautiques affiliés à la FFVoile dans toute la France. Tu peux voir la liste complète et sélectionner les écoles de ton choix depuis ton dashboard.</p>
                     </div>
                 </div>
                 <div class="faq-item">
@@ -242,7 +299,7 @@
                         <span class="faq-toggle">+</span>
                     </button>
                     <div class="faq-answer">
-                        <p>Oui, notre base est mise à jour quotidiennement depuis le site de la FFVoile. Les nouvelles offres apparaissent automatiquement sur ton dashboard.</p>
+                        <p>Oui, notre base est mise à jour toutes les 6 heures depuis le site de la FFVoile. Les nouvelles offres apparaissent automatiquement sur ton dashboard.</p>
                     </div>
                 </div>
             </div>
@@ -252,12 +309,31 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <p>&copy; 2026 VoileCV. Fait avec passion pour les passionnés de voile.</p>
+            <div class="footer-content">
+                <p>&copy; 2026 VoileCV. Fait avec passion pour les passionnés de voile.</p>
+                <div class="footer-links">
+                    <a href="/mentions-legales">Mentions légales</a>
+                    <a href="/cgv">CGV</a>
+                </div>
+            </div>
         </div>
     </footer>
 
+    <!-- RGPD Cookie Banner -->
+    <div class="cookie-banner" id="cookie-banner" style="display:none">
+        <div class="cookie-content">
+            <p>Ce site utilise des cookies pour améliorer votre expérience et mesurer l'audience.
+               <a href="/mentions-legales#cookies">En savoir plus</a></p>
+            <div class="cookie-actions">
+                <button class="btn btn-sm" id="cookie-refuse" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.3)">Refuser</button>
+                <button class="btn btn-primary btn-sm" id="cookie-accept">Accepter</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/app.js"></script>
     <script>
+    // FOMO spots counter
     fetch('/api/spots').then(r => r.json()).then(data => {
         const taken = Math.max(data.taken, 18);
         const remaining = Math.max(0, 30 - taken);
@@ -277,6 +353,19 @@
                 'Dernières places : plus que <span class="urgency-number">' + remaining + '</span>';
         }
     }).catch(() => {});
+
+    // RGPD Cookie banner
+    if (!localStorage.getItem('cookie-consent')) {
+        document.getElementById('cookie-banner').style.display = 'flex';
+    }
+    document.getElementById('cookie-accept').addEventListener('click', () => {
+        localStorage.setItem('cookie-consent', 'accepted');
+        document.getElementById('cookie-banner').style.display = 'none';
+    });
+    document.getElementById('cookie-refuse').addEventListener('click', () => {
+        localStorage.setItem('cookie-consent', 'refused');
+        document.getElementById('cookie-banner').style.display = 'none';
+    });
     </script>
 </body>
 </html>

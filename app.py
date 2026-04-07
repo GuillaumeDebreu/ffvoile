@@ -164,6 +164,31 @@ async def get_spots():
     return {"total": MAX_SPOTS, "taken": min(taken, MAX_SPOTS), "remaining": max(0, MAX_SPOTS - taken)}
 
 
+@app.get("/confirmation", response_class=HTMLResponse)
+async def confirmation(request: Request, token: str = ""):
+    conn = get_connection()
+    user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+    conn.close()
+    if not user:
+        return RedirectResponse("/")
+    base_url = _env("BASE" + "_URL", "https://voilecv.fr")
+    return templates.TemplateResponse(
+        request=request,
+        name="confirmation.html",
+        context={"token": token, "base_url": base_url},
+    )
+
+
+@app.get("/mentions-legales", response_class=HTMLResponse)
+async def mentions_legales(request: Request):
+    return templates.TemplateResponse(request=request, name="mentions-legales.html", context={})
+
+
+@app.get("/cgv", response_class=HTMLResponse)
+async def cgv(request: Request):
+    return templates.TemplateResponse(request=request, name="cgv.html", context={})
+
+
 # ─── CV Upload ───────────────────────────────────────────────────────────
 
 @app.post("/api/upload-cv")
