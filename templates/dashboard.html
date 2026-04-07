@@ -77,13 +77,12 @@
                             <th>Ville</th>
                             <th>Dept</th>
                             <th>Offre en cours</th>
-                            <th>Score</th>
                             <th>Statut</th>
                             <th style="width:40px"></th>
                         </tr>
                     </thead>
                     <tbody id="ecoles-tbody">
-                        <tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280">Chargement...</td></tr>
+                        <tr><td colspan="7" style="text-align:center;padding:40px;color:#6b7280">Chargement...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -103,10 +102,6 @@
                 <div class="preview-attachments" id="preview-attachments"></div>
                 <div class="preview-actions">
                     <span class="save-status" id="save-status"></span>
-                    <a class="btn btn-sm" id="preview-cv-adapte" href="#" target="_blank"
-                       style="background:var(--navy-light);color:var(--white);text-decoration:none">
-                        CV adapté PDF
-                    </a>
                     <button class="btn btn-sm" id="preview-regenerate" style="background:var(--gray-200);color:var(--gray-700)">
                         Régénérer
                     </button>
@@ -123,7 +118,6 @@
 
     let allData = [];
     let candidatures = {};
-    let scores = {};
     let selected = new Set();
 
     const STATUS_CONFIG = {
@@ -148,20 +142,6 @@
         }
         renderTable(allData);
         populateFilters(allData);
-        // Load scores async (may take time with LLM)
-        loadScores();
-    }
-
-    async function loadScores() {
-        try {
-            const res = await fetch(`/api/scores?token=${TOKEN}`);
-            if (res.ok) {
-                scores = await res.json();
-                // Re-render with scores (applyFilters is defined below, called after DOM ready)
-                if (typeof applyFilters === 'function') applyFilters();
-                else renderTable(allData);
-            }
-        } catch(e) { console.warn('Score loading failed:', e); }
     }
 
     function populateFilters(data) {
@@ -193,35 +173,19 @@
         return STATUS_CONFIG[c.status] || { label: c.status, css: 'status-non-envoye' };
     }
 
-    const GRADE_CSS = {
-        'A': 'grade-a', 'B': 'grade-b', 'C': 'grade-c',
-        'D': 'grade-d', 'F': 'grade-f',
-    };
-
     function renderTable(data) {
         const tbody = document.getElementById('ecoles-tbody');
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280">Aucune école trouvée</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#6b7280">Aucune école trouvée</td></tr>';
             return;
         }
 
-        // Sort by score descending if scores are loaded
-        const sorted = [...data].sort((a, b) => {
-            const sa = scores[a.id]?.score ?? 0;
-            const sb = scores[b.id]?.score ?? 0;
-            return sb - sa;
-        });
-
-        tbody.innerHTML = sorted.map(row => {
+        tbody.innerHTML = data.map(row => {
             const hasOffre = row.offre_id !== null;
             const checked = selected.has(row.id) ? 'checked' : '';
             const status = getStatus(row.id);
             const isSent = candidatures[row.id] && ['sent','opened','replied'].includes(candidatures[row.id].status);
-            const sc = scores[row.id];
-            const scoreBadge = sc
-                ? `<span class="grade-badge ${GRADE_CSS[sc.grade] || 'grade-f'}" title="${sc.score}/5">${sc.grade}</span>`
-                : '<span style="color:#d1d5db">...</span>';
             return `
                 <tr class="${hasOffre ? 'has-offre' : ''}">
                     <td><input type="checkbox" class="row-check" data-id="${row.id}" ${checked} ${isSent ? 'disabled' : ''}></td>
@@ -232,7 +196,6 @@
                         ? `<a href="${esc(row.url_offre)}" target="_blank" class="offre-badge">${esc(truncate(row.offre_intitule, 35))}</a>`
                         : '<span style="color:#9ca3af">—</span>'
                     }</td>
-                    <td>${scoreBadge}</td>
                     <td><span class="status-badge ${status.css}">${status.label}</span></td>
                     <td><button class="btn-preview" data-ecole-id="${row.id}" title="Aperçu candidature">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -385,8 +348,6 @@
             document.getElementById('preview-meta').innerHTML = meta;
 
             document.getElementById('preview-letter-edit').value = data.cover_letter;
-            document.getElementById('preview-cv-adapte').href =
-                `/api/cv-adapte?token=${TOKEN}&ecole_id=${ecoleId}`;
 
             let attachments = '';
             if (data.has_cv) attachments += '<span class="attachment-tag">CV.pdf</span>';
