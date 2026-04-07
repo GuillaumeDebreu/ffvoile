@@ -396,6 +396,43 @@ async def get_ecoles(token: str = "", departement: str = "", region: str = "",
     return [dict(r) for r in rows]
 
 
+# ─── Scoring API ─────────────────────────────────────────────────────
+
+@app.get("/api/scores")
+async def get_scores(token: str = ""):
+    conn = get_connection()
+    user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+    if not user or not user["paid"]:
+        conn.close()
+        raise HTTPException(403, "Accès non autorisé")
+
+    # Get all ecole IDs
+    ecole_ids = [r["id"] for r in conn.execute("SELECT id FROM ecoles").fetchall()]
+    conn.close()
+
+    from services.scoring import compute_scores_batch
+    scores = compute_scores_batch(user["id"], ecole_ids)
+
+    # Return simplified {ecole_id: {score, grade}} for dashboard
+    return {
+        str(eid): {"score": s["score"], "grade": s["grade"]}
+        for eid, s in scores.items()
+    }
+
+
+@app.get("/api/score-detail")
+async def get_score_detail(token: str = "", ecole_id: int = 0):
+    conn = get_connection()
+    user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+    if not user or not user["paid"]:
+        conn.close()
+        raise HTTPException(403, "Accès non autorisé")
+    conn.close()
+
+    from services.scoring import compute_score
+    return compute_score(user["id"], ecole_id)
+
+
 # ─── Preview candidature ─────────────────────────────────────────────
 
 @app.get("/api/preview-candidature")
@@ -515,6 +552,36 @@ async def send_cv(request: Request):
     return results
 
 
+# ─── Adapted CV PDF ─────────────────────────────────────────────────
+
+@app.get("/api/cv-adapte")
+async def download_adapted_cv(token: str = "", ecole_id: int = 0):
+    conn = get_connection()
+    user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+    if not user or not user["paid"]:
+        conn.close()
+        raise HTTPException(403, "Accès non autorisé")
+
+    ecole = conn.execute("SELECT nom FROM ecoles WHERE id = ?", (ecole_id,)).fetchone()
+    conn.close()
+
+    if not ecole:
+        raise HTTPException(404, "École non trouvée")
+
+    from services.cv_generator import generate_adapted_cv
+    pdf_bytes = generate_adapted_cv(user["id"], ecole_id)
+
+    if not pdf_bytes:
+        raise HTTPException(500, "Impossible de générer le CV adapté")
+
+    slug = ecole["nom"].replace(" ", "-")[:30]
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=CV-{slug}.pdf"},
+    )
+
+
 # ─── Candidatures status ─────────────────────────────────────────────
 
 @app.get("/api/candidatures")
@@ -588,6 +655,21 @@ async def download_report(token: str = ""):
         media_type="application/pdf",
         headers={"Content-Disposition": "attachment; filename=voilecv-rapport.pdf"},
     )
+
+
+# ─── Pipeline integrity ──────────────────────────────────────────────
+
+@app.get("/api/integrity")
+async def check_integrity(token: str = ""):
+    conn = get_connection()
+    user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+    conn.close()
+
+    if not user or not user["paid"]:
+        raise HTTPException(403, "Accès non autorisé")
+
+    from services.integrity import verify_pipeline
+    return verify_pipeline()
 
 
 if __name__ == "__main__":
