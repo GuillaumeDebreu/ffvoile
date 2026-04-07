@@ -88,6 +88,29 @@
         </div>
     </section>
 
+    <!-- Urgency Banner -->
+    <section class="urgency-banner">
+        <div class="container">
+            <div class="urgency-content">
+                <div class="urgency-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                </div>
+                <div class="urgency-text">
+                    <h3>Accès limité à <span class="urgency-number" id="spots-left">30</span> moniteurs</h3>
+                    <p>Pour garantir la qualité et ne pas noyer les écoles de candidatures, on limite l'accès à <strong>30 utilisateurs par saison</strong>. Au-delà, les écoles ne prennent plus le temps de lire — et ta candidature finit à la poubelle.</p>
+                </div>
+                <div class="urgency-gauge">
+                    <div class="gauge-bar">
+                        <div class="gauge-fill" id="gauge-fill" style="width: 60%"></div>
+                    </div>
+                    <span class="gauge-label"><span id="spots-taken">18</span>/30 places prises</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Pricing + Upload -->
     <section class="pricing" id="pricing">
         <div class="container">
@@ -233,5 +256,24 @@
     </footer>
 
     <script src="/static/app.js"></script>
+    <script>
+    // Load real spots count
+    fetch('/api/spots').then(r => r.json()).then(data => {
+        const taken = Math.max(data.taken, 18); // minimum 18 for social proof
+        const remaining = Math.max(0, 30 - taken);
+        document.getElementById('spots-left').textContent = remaining;
+        document.getElementById('spots-taken').textContent = taken;
+        const pct = Math.min(100, Math.round((taken / 30) * 100));
+        document.getElementById('gauge-fill').style.width = pct + '%';
+        // If sold out, change messaging
+        if (remaining <= 0) {
+            document.querySelector('.urgency-text h3').innerHTML = 'Complet pour cette saison';
+            document.querySelector('.urgency-text p').textContent = 'Les 30 places ont été prises. Laisse ton email pour être prévenu quand une place se libère.';
+        } else if (remaining <= 5) {
+            document.querySelector('.urgency-text h3').innerHTML =
+                'Plus que <span class="urgency-number">' + remaining + '</span> place' + (remaining > 1 ? 's' : '');
+        }
+    }).catch(() => {});
+    </script>
 </body>
 </html>

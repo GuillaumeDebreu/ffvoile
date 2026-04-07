@@ -145,6 +145,8 @@ async def cron_refresh(key: str = ""):
 
 # ─── Landing Page ────────────────────────────────────────────────────────
 
+MAX_SPOTS = 30
+
 @app.get("/", response_class=HTMLResponse)
 async def landing(request: Request):
     return templates.TemplateResponse(
@@ -152,6 +154,14 @@ async def landing(request: Request):
         name="landing.html",
         context={"stripe_key": _env("STRIPE_PUBLISHABLE_KEY", "pk_test_PLACEHOLDER")},
     )
+
+
+@app.get("/api/spots")
+async def get_spots():
+    conn = get_connection()
+    taken = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    conn.close()
+    return {"total": MAX_SPOTS, "taken": min(taken, MAX_SPOTS), "remaining": max(0, MAX_SPOTS - taken)}
 
 
 # ─── CV Upload ───────────────────────────────────────────────────────────

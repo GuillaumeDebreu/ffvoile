@@ -222,6 +222,88 @@ body {
     line-height: 1.6;
 }
 
+/* ─── Urgency Banner ─────────────────────────────────────────────── */
+.urgency-banner {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+    padding: 40px 0;
+    position: relative;
+    overflow: hidden;
+}
+.urgency-banner::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 20% 50%, rgba(234, 179, 8, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(239, 68, 68, 0.06) 0%, transparent 50%);
+}
+.urgency-content {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    position: relative;
+    z-index: 1;
+}
+.urgency-icon {
+    flex-shrink: 0;
+    width: 56px; height: 56px;
+    background: rgba(234, 179, 8, 0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fbbf24;
+    animation: pulse-soft 2s ease-in-out infinite;
+}
+@keyframes pulse-soft {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.2); }
+    50% { box-shadow: 0 0 0 12px rgba(234, 179, 8, 0); }
+}
+.urgency-text {
+    flex: 1;
+}
+.urgency-text h3 {
+    color: #fff;
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+.urgency-number {
+    color: #fbbf24;
+    font-size: 1.3rem;
+}
+.urgency-text p {
+    color: rgba(255,255,255,0.65);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin: 0;
+}
+.urgency-gauge {
+    flex-shrink: 0;
+    width: 160px;
+    text-align: center;
+}
+.gauge-bar {
+    width: 100%;
+    height: 10px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+.gauge-fill {
+    height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, #16a34a 0%, #eab308 60%, #ef4444 100%);
+    transition: width 1.5s ease-out;
+}
+.gauge-label {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.5);
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .urgency-content { flex-direction: column; text-align: center; }
+    .urgency-gauge { width: 200px; }
+}
+
 /* ─── Pricing ────────────────────────────────────────────────────── */
 .pricing {
     padding: 96px 0;
