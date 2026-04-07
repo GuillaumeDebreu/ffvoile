@@ -89,6 +89,48 @@
         </div>
     </div>
 
+    <!-- Toast notification -->
+    <div id="toast-overlay" style="display:none">
+        <div id="toast-box">
+            <div id="toast-icon"></div>
+            <div id="toast-title"></div>
+            <div id="toast-body"></div>
+            <button id="toast-close" onclick="closeToast()">OK</button>
+        </div>
+    </div>
+    <style>
+        #toast-overlay {
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(0,0,0,0.45); display: flex;
+            align-items: center; justify-content: center;
+            animation: fadeIn .2s;
+        }
+        #toast-box {
+            background: white; border-radius: 16px; padding: 32px;
+            max-width: 400px; width: 90%; text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp .3s ease;
+        }
+        #toast-icon { font-size: 48px; margin-bottom: 12px; }
+        #toast-title { font-size: 1.25rem; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+        #toast-body { font-size: 0.95rem; color: #555; line-height: 1.6; margin-bottom: 24px; }
+        #toast-body .toast-stat { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+        #toast-body .toast-stat:last-child { border-bottom: none; }
+        #toast-body .toast-stat .label { color: #777; }
+        #toast-body .toast-stat .value { font-weight: 600; }
+        #toast-body .toast-stat .value.success { color: #0077b6; }
+        #toast-body .toast-stat .value.warn { color: #e6a817; }
+        #toast-body .toast-stat .value.error { color: #d32f2f; }
+        #toast-close {
+            background: #0077b6; color: white; border: none; border-radius: 10px;
+            padding: 12px 40px; font-size: 1rem; font-weight: 600; cursor: pointer;
+            transition: background .2s;
+        }
+        #toast-close:hover { background: #005f8a; }
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+    </style>
+
     <!-- Preview Modal -->
     <div class="modal-overlay" id="preview-modal" style="display:none">
         <div class="modal">
@@ -115,6 +157,28 @@
 
     <script>
     const TOKEN = '{{ token }}';
+
+    function showToast(type, sent, skipped, failed, errorMsg) {
+        const el = id => document.getElementById(id);
+        if (type === 'success') {
+            el('toast-icon').textContent = sent > 0 ? '\u2705' : '\u26A0\uFE0F';
+            el('toast-title').textContent = sent > 0 ? 'Candidatures envoyées !' : 'Aucun envoi';
+            let stats = '';
+            if (sent > 0) stats += `<div class="toast-stat"><span class="label">Envoyé${sent > 1 ? 's' : ''}</span><span class="value success">${sent}</span></div>`;
+            if (skipped > 0) stats += `<div class="toast-stat"><span class="label">Déjà envoyé${skipped > 1 ? 's' : ''}</span><span class="value warn">${skipped}</span></div>`;
+            if (failed > 0) stats += `<div class="toast-stat"><span class="label">Échoué${failed > 1 ? 's' : ''}</span><span class="value error">${failed}</span></div>`;
+            el('toast-body').innerHTML = stats || '<p>Aucune candidature à traiter.</p>';
+        } else {
+            el('toast-icon').textContent = '\u274C';
+            el('toast-title').textContent = 'Erreur';
+            el('toast-body').innerHTML = `<p>${errorMsg}</p>`;
+        }
+        el('toast-overlay').style.display = 'flex';
+    }
+
+    function closeToast() {
+        document.getElementById('toast-overlay').style.display = 'none';
+    }
 
     let allData = [];
     let candidatures = {};
@@ -288,15 +352,14 @@
             const result = await res.json();
 
             if (res.ok) {
-                const msg = `Résultat :\n- ${result.sent} envoyé(s)\n- ${result.skipped} ignoré(s)\n- ${result.failed} échoué(s)`;
-                alert(msg);
+                showToast('success', result.sent, result.skipped, result.failed);
                 selected.clear();
-                await loadData();  // Refresh
+                await loadData();
             } else {
-                alert('Erreur: ' + (result.detail || 'Erreur inconnue'));
+                showToast('error', 0, 0, 0, result.detail || 'Erreur inconnue');
             }
         } catch (err) {
-            alert('Erreur réseau: ' + err.message);
+            showToast('error', 0, 0, 0, 'Erreur réseau : ' + err.message);
         }
 
         btn.disabled = false;
