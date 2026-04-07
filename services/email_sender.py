@@ -6,6 +6,70 @@ from pathlib import Path
 from scraping.database import get_connection
 
 
+def send_welcome_email(to_email: str, dashboard_url: str) -> bool:
+    """Send a welcome email with the dashboard access link.
+
+    Returns True on success, False on failure.
+    """
+    import resend
+
+    api_key = os.environ.get("RESEND" + "_API_KEY", "")
+    from_email = os.environ.get("RESEND" + "_FROM", "VoileCV <onboarding@resend.dev>")
+
+    if not api_key:
+        print(f"  [SKIP] RESEND_API_KEY not set, skipping welcome email to {to_email}")
+        return False
+
+    resend.api_key = api_key
+
+    html_body = f"""<html>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+<div style="background: linear-gradient(135deg, #0077b6, #00b4d8); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 28px;">Bienvenue sur VoileCV !</h1>
+</div>
+<div style="padding: 30px; background: #f8f9fa; border-radius: 0 0 12px 12px;">
+    <p>Bonjour,</p>
+    <p>Votre CV a bien été reçu. Votre dashboard est prêt : vous pouvez consulter les écoles de voile, personnaliser vos lettres de motivation et envoyer vos candidatures en un clic.</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{dashboard_url}" style="background: #0077b6; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">Accéder à mon dashboard</a>
+    </div>
+
+    <p style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px 16px; font-size: 14px;">
+        <strong>Conservez cet email</strong> — le lien ci-dessus est votre accès personnel au dashboard. Pas de mot de passe, il suffit de cliquer.
+    </p>
+
+    <p style="margin-top: 24px;">Bonne recherche,<br><strong>L'équipe VoileCV</strong></p>
+</div>
+</body>
+</html>"""
+
+    text_body = f"""Bienvenue sur VoileCV !
+
+Votre CV a bien été reçu. Votre dashboard est prêt.
+
+Accédez à votre dashboard : {dashboard_url}
+
+Conservez cet email — le lien ci-dessus est votre accès personnel.
+
+Bonne recherche,
+L'équipe VoileCV"""
+
+    try:
+        result = resend.Emails.send({
+            "from": from_email,
+            "to": [to_email],
+            "subject": "Bienvenue sur VoileCV — Votre dashboard est prêt",
+            "html": html_body,
+            "text": text_body,
+        })
+        print(f"  [OK] Welcome email sent to {to_email} (id: {result.get('id', '?')})")
+        return True
+    except Exception as e:
+        print(f"  [ERROR] Failed to send welcome email to {to_email}: {e}")
+        return False
+
+
 def send_candidature_email(
     to_email: str,
     ecole_nom: str,

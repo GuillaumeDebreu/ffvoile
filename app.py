@@ -270,6 +270,20 @@ async def upload_cv(
     finally:
         conn.close()
 
+    # Send welcome email with dashboard link (non-blocking)
+    base_url = _env("BASE_URL", "http://localhost:8000")
+    dashboard_url = f"{base_url}/dashboard?token={token}"
+
+    def _send_welcome():
+        try:
+            from services.email_sender import send_welcome_email
+            send_welcome_email(to_email=email, dashboard_url=dashboard_url)
+        except Exception as e:
+            print(f"[WARN] Welcome email failed: {e}")
+
+    import threading
+    threading.Thread(target=_send_welcome, daemon=True).start()
+
     return {"user_id": user_id, "token": token, "filename": file.filename}
 
 
