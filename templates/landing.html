@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VoileCV — Trouve ton job de moniteur de voile en 1 clic</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -98,14 +99,14 @@
                     </svg>
                 </div>
                 <div class="urgency-text">
-                    <h3>Accès limité à <span class="urgency-number" id="spots-left">30</span> moniteurs</h3>
-                    <p>Pour garantir la qualité et ne pas noyer les écoles de candidatures, on limite l'accès à <strong>30 utilisateurs par saison</strong>. Au-delà, les écoles ne prennent plus le temps de lire — et ta candidature finit à la poubelle.</p>
+                    <h3>Plus que <span class="urgency-number" id="spots-left">12</span> places disponibles</h3>
+                    <p>On limite à <strong>30 moniteurs par saison</strong> pour que chaque candidature soit lue. Trop de CV d'un coup = les écoles ne lisent plus.</p>
                 </div>
                 <div class="urgency-gauge">
                     <div class="gauge-bar">
                         <div class="gauge-fill" id="gauge-fill" style="width: 60%"></div>
                     </div>
-                    <span class="gauge-label"><span id="spots-taken">18</span>/30 places prises</span>
+                    <span class="gauge-label" id="gauge-label">18/30 inscrits</span>
                 </div>
             </div>
         </div>
@@ -257,21 +258,23 @@
 
     <script src="/static/app.js"></script>
     <script>
-    // Load real spots count
     fetch('/api/spots').then(r => r.json()).then(data => {
-        const taken = Math.max(data.taken, 18); // minimum 18 for social proof
+        const taken = Math.max(data.taken, 18);
         const remaining = Math.max(0, 30 - taken);
-        document.getElementById('spots-left').textContent = remaining;
-        document.getElementById('spots-taken').textContent = taken;
         const pct = Math.min(100, Math.round((taken / 30) * 100));
+
+        document.getElementById('spots-left').textContent = remaining;
+        document.getElementById('gauge-label').textContent = taken + '/30 inscrits';
         document.getElementById('gauge-fill').style.width = pct + '%';
-        // If sold out, change messaging
+
         if (remaining <= 0) {
-            document.querySelector('.urgency-text h3').innerHTML = 'Complet pour cette saison';
-            document.querySelector('.urgency-text p').textContent = 'Les 30 places ont été prises. Laisse ton email pour être prévenu quand une place se libère.';
+            document.querySelector('.urgency-text h3').innerHTML =
+                '<span class="urgency-number">Complet</span> pour cette saison';
+            document.querySelector('.urgency-text p').textContent =
+                'Les 30 places ont été prises. Laisse ton email pour être prévenu dès qu\'une place se libère.';
         } else if (remaining <= 5) {
             document.querySelector('.urgency-text h3').innerHTML =
-                'Plus que <span class="urgency-number">' + remaining + '</span> place' + (remaining > 1 ? 's' : '');
+                'Dernières places : plus que <span class="urgency-number">' + remaining + '</span>';
         }
     }).catch(() => {});
     </script>
