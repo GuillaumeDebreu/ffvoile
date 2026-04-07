@@ -71,6 +71,25 @@ def init_app_db():
 
 init_app_db()
 
+# ─── Test school for end-to-end testing ──────────────────────────────────
+_conn = get_connection()
+_test = _conn.execute("SELECT id FROM ecoles WHERE nom = 'Guillaume School'").fetchone()
+if not _test:
+    _conn.execute("""
+        INSERT INTO ecoles (nom, email, ville, departement, source, date_scrape)
+        VALUES ('Guillaume School', 'g.debreu@gmail.com', 'Paris', '75', 'test', datetime('now'))
+    """)
+    _test_id = _conn.execute("SELECT id FROM ecoles WHERE nom = 'Guillaume School'").fetchone()["id"]
+    _conn.execute("""
+        INSERT OR IGNORE INTO offres (ecole_id, ffvoile_id, intitule, nom_structure, lieu, departement,
+            type_contrat, description, date_scrape)
+        VALUES (?, 99999, 'Moniteur de voile polyvalent', 'Guillaume School', 'Paris', '75',
+            'CDI', 'Recherche moniteur de voile pour encadrement catamaran et dériveur, tous publics.', datetime('now'))
+    """, (_test_id,))
+    _conn.commit()
+    print("[STARTUP] Test school 'Guillaume School' inserted")
+_conn.close()
+
 # Auto-scrape if database is empty (first deploy)
 import threading, traceback
 
