@@ -65,6 +65,10 @@ def init_app_db():
     cols = [r[1] for r in conn.execute("PRAGMA table_info(candidatures)").fetchall()]
     if "custom_letter" not in cols:
         conn.execute("ALTER TABLE candidatures ADD COLUMN custom_letter TEXT")
+    # Migration: add name column to users if missing
+    user_cols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "name" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN name TEXT DEFAULT ''")
     conn.commit()
     conn.close()
 
@@ -211,11 +215,14 @@ async def cgv(request: Request):
 async def upload_cv(
     file: UploadFile = File(...),
     email: str = Form(""),
+    fullname: str = Form(""),
     diploma: UploadFile = File(None),
     letter: UploadFile = File(None),
 ):
     if not email or "@" not in email:
         raise HTTPException(400, "Email invalide")
+    if not fullname or len(fullname.strip()) < 2:
+        raise HTTPException(400, "Prénom et nom requis")
 
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Seuls les fichiers PDF sont acceptés")
@@ -252,15 +259,16 @@ async def upload_cv(
     conn = get_connection()
     try:
         conn.execute("""
-            INSERT INTO users (id, email, token, cv_path, diploma_path, letter_path, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (id, email, token, cv_path, diploma_path, letter_path, name, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(email) DO UPDATE SET
                 cv_path = excluded.cv_path,
                 diploma_path = COALESCE(excluded.diploma_path, users.diploma_path),
                 letter_path = COALESCE(excluded.letter_path, users.letter_path),
+                name = excluded.name,
                 token = excluded.token
         """, (user_id, email, token, str(filepath), diploma_path, letter_path,
-              datetime.now().isoformat()))
+              fullname.strip(), datetime.now().isoformat()))
         conn.commit()
 
         # Get user id (might be existing user)

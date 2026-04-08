@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileRemove = document.getElementById('file-remove');
     const payBtn = document.getElementById('pay-btn');
     const emailInput = document.getElementById('email');
+    const fullnameInput = document.getElementById('fullname');
 
     if (!uploadZone) return; // Not on landing page
 
@@ -29,10 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function updatePayBtn() {
         const hasFile = selectedFile !== null;
         const hasEmail = emailInput.value.includes('@');
-        payBtn.disabled = !(hasFile && hasEmail);
+        const hasName = fullnameInput.value.trim().length >= 2;
+        payBtn.disabled = !(hasFile && hasEmail && hasName);
     }
 
     emailInput.addEventListener('input', updatePayBtn);
+    fullnameInput.addEventListener('input', updatePayBtn);
 
     // CV upload
     uploadZone.addEventListener('click', () => fileInput.click());
@@ -138,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData();
             formData.append('file', selectedFile);
             formData.append('email', emailInput.value);
+            formData.append('fullname', fullnameInput.value.trim());
             if (diplomaFile) formData.append('diploma', diplomaFile);
             if (letterFile) formData.append('letter', letterFile);
 

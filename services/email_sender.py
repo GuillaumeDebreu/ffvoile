@@ -78,6 +78,7 @@ def send_candidature_email(
     candidature_id: int,
     user_email: str,
     diploma_path: str = None,
+    sender_name: str = "",
 ) -> bool:
     """Send a candidature email with CV attachment, optional diploma, and tracking pixel.
 
@@ -86,8 +87,18 @@ def send_candidature_email(
     import resend
 
     api_key = os.environ.get("RESEND" + "_API_KEY", "")
-    from_email = os.environ.get("RESEND" + "_FROM", "VoileCV <onboarding@resend.dev>")
+    from_domain = os.environ.get("RESEND" + "_FROM", "VoileCV <onboarding@resend.dev>")
     base_url = os.environ.get("BASE" + "_URL", "http://localhost:8000")
+
+    # Use candidate's name as sender display name
+    if sender_name:
+        # Extract email address from RESEND_FROM (e.g. "VoileCV <candidature@voilecv.fr>" -> "candidature@voilecv.fr")
+        import re
+        match = re.search(r'<(.+?)>', from_domain)
+        addr = match.group(1) if match else from_domain
+        from_email = f"{sender_name} <{addr}>"
+    else:
+        from_email = from_domain
 
     if not api_key:
         print(f"  [SKIP] RESEND_API_KEY not set, skipping email to {to_email}")
@@ -234,6 +245,7 @@ def send_batch(user_id: str, ecole_ids: list[int]) -> dict:
             candidature_id=cand["id"],
             user_email=user["email"],
             diploma_path=user["diploma_path"],
+            sender_name=user["name"] if user["name"] else "",
         )
 
         if success:
