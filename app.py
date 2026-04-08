@@ -321,7 +321,7 @@ async def create_checkout_session(request: Request):
                 "quantity": 1,
             }],
             mode="payment",
-            success_url=f"{base}/dashboard?token={token}",
+            success_url=f"{base}/dashboard?token={token}&just_paid=1",
             cancel_url=f"{base}/?cancelled=true",
             client_reference_id=user_id,
             customer_email=user["email"],
@@ -385,7 +385,7 @@ async def stripe_webhook(request: Request):
 # ─── Dashboard (post-payment) ────────────────────────────────────────────
 
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request, token: str = ""):
+async def dashboard(request: Request, token: str = "", just_paid: str = ""):
     if not token:
         return RedirectResponse("/")
 
@@ -433,6 +433,7 @@ async def dashboard(request: Request, token: str = ""):
             "last_update": last_update,
             "offre_count": offre_count,
             "ecole_count": ecole_count,
+            "just_paid": just_paid == "1",
         },
     )
 
