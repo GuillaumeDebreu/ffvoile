@@ -313,8 +313,8 @@ async def create_checkout_session(request: Request):
                 "price_data": {
                     "currency": "eur",
                     "product_data": {
-                        "name": "VoileCV - Envoi de CV aux écoles de voile",
-                        "description": "CV personnalisé envoyé à toutes les écoles de voile de France",
+                        "name": "VoileCV — Accès complet",
+                        "description": "Candidature envoyée à 100+ écoles de voile · Dashboard de suivi · Tracker d'ouverture",
                     },
                     "unit_amount": PRICE_CENTS,
                 },
