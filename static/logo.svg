@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80">
+  <!-- Sailboat icon -->
+  <g transform="translate(10, 5)">
+    <path d="M30 10 L30 58 L14 58 Q14 30 30 10Z" fill="#e67e22"/>
+    <path d="M30 18 L30 58 L46 58 Q46 34 30 18Z" fill="#0077b6"/>
+    <path d="M8 62 L52 62" stroke="#00b4d8" stroke-width="3" stroke-linecap="round"/>
+    <path d="M4 68 L56 68" stroke="#00b4d8" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+  </g>
+  <!-- Text -->
+  <text x="70" y="38" font-family="Inter, Arial, sans-serif" font-weight="800" font-size="32" fill="#0a1628">Voile</text>
+  <text x="152" y="38" font-family="Inter, Arial, sans-serif" font-weight="800" font-size="32" fill="#0077b6">CV</text>
+  <text x="70" y="58" font-family="Inter, Arial, sans-serif" font-weight="400" font-size="13" fill="#666" letter-spacing="0.5">Ton job de moniteur en 1 clic</text>
+</svg>
