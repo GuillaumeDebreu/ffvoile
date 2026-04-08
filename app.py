@@ -191,11 +191,13 @@ async def confirmation(request: Request, token: str = ""):
     conn.close()
     if not user:
         return RedirectResponse("/")
-    base_url = _env("BASE" + "_URL", "https://voilecv.fr")
+    # If already paid, go straight to dashboard
+    if user["paid"]:
+        return RedirectResponse(f"/dashboard?token={token}")
     return templates.TemplateResponse(
         request=request,
         name="confirmation.html",
-        context={"token": token, "base_url": base_url},
+        context={"token": token, "user_id": user["id"]},
     )
 
 
@@ -277,20 +279,6 @@ async def upload_cv(
         token = row["token"]
     finally:
         conn.close()
-
-    # Send welcome email with dashboard link (non-blocking)
-    base_url = _env("BASE_URL", "http://localhost:8000")
-    dashboard_url = f"{base_url}/dashboard?token={token}"
-
-    def _send_welcome():
-        try:
-            from services.email_sender import send_welcome_email
-            send_welcome_email(to_email=email, dashboard_url=dashboard_url)
-        except Exception as e:
-            print(f"[WARN] Welcome email failed: {e}")
-
-    import threading
-    threading.Thread(target=_send_welcome, daemon=True).start()
 
     return {"user_id": user_id, "token": token, "filename": file.filename}
 
@@ -375,7 +363,21 @@ async def stripe_webhook(request: Request):
             conn = get_connection()
             conn.execute("UPDATE users SET paid = 1 WHERE id = ?", (user_id,))
             conn.commit()
+            user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
             conn.close()
+
+            # Send welcome email with dashboard link after successful payment
+            if user:
+                base_url = _env("BASE_URL", "http://localhost:8000")
+                dashboard_url = f"{base_url}/dashboard?token={user['token']}"
+                def _send_welcome():
+                    try:
+                        from services.email_sender import send_welcome_email
+                        send_welcome_email(to_email=user["email"], dashboard_url=dashboard_url)
+                    except Exception as e:
+                        print(f"[WARN] Welcome email failed: {e}")
+                import threading
+                threading.Thread(target=_send_welcome, daemon=True).start()
 
     return {"status": "ok"}
 
@@ -394,12 +396,22 @@ async def dashboard(request: Request, token: str = ""):
         conn.close()
         return RedirectResponse("/")
 
-    # Auto-grant access (Stripe bypassed for now)
-    # TODO: re-enable Stripe checkout and rely on webhook only
     if not user["paid"]:
-        conn.execute("UPDATE users SET paid = 1 WHERE id = ?", (user["id"],))
-        conn.commit()
-        user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+        # Fallback: check Stripe session directly if webhook hasn't fired yet
+        if user["stripe_session_id"]:
+            try:
+                import stripe
+                stripe.api_key = _env("STRIPE_SECRET_KEY", "")
+                session = stripe.checkout.Session.retrieve(user["stripe_session_id"])
+                if session.payment_status == "paid":
+                    conn.execute("UPDATE users SET paid = 1 WHERE id = ?", (user["id"],))
+                    conn.commit()
+                    user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+            except Exception:
+                pass
+        if not user["paid"]:
+            conn.close()
+            return RedirectResponse(f"/confirmation?token={token}")
 
     # Get last scrape date
     last_scrape = conn.execute(

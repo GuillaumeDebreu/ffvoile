@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://t.contentsquare.net/uxa/cef6c23db9700.js"></script>
-    <title>C'est parti ! — VoileCV</title>
+    <title>Finalise ton accès — VoileCV</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -25,8 +25,8 @@
                         <polyline points="22 4 12 14.01 9 11.01"/>
                     </svg>
                 </div>
-                <h1>Ton CV est prêt à être envoyé !</h1>
-                <p class="confirmation-sub">Ton compte est créé et tes documents sont uploadés. Tu peux maintenant accéder à ton dashboard pour sélectionner les écoles et envoyer tes candidatures.</p>
+                <h1>Ton CV est bien reçu !</h1>
+                <p class="confirmation-sub">Plus qu'une étape pour envoyer tes candidatures aux écoles de voile.</p>
 
                 <div class="confirmation-steps">
                     <div class="confirmation-step done">
@@ -39,18 +39,30 @@
                     </div>
                     <div class="confirmation-step next">
                         <span class="step-num">3</span>
-                        <span>Choisis tes écoles et envoie</span>
+                        <span>Active ton accès</span>
                     </div>
                 </div>
 
-                <a href="/dashboard?token={{ token }}" class="btn btn-primary btn-lg" style="margin-top:24px">
-                    Accéder à mon dashboard &rarr;
-                </a>
+                <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0; text-align: left;">
+                    <h3 style="margin: 0 0 12px 0; color: #0077b6; font-size: 1.1rem;">Ce que tu obtiens :</h3>
+                    <ul style="margin: 0; padding-left: 20px; color: #333; line-height: 2;">
+                        <li>Candidature envoyée à <strong>100+ écoles de voile</strong></li>
+                        <li>Lettre de motivation <strong>personnalisée par IA</strong> pour chaque école</li>
+                        <li>Dashboard de suivi : envois, ouvertures, réponses</li>
+                        <li>Les réponses arrivent directement dans ta boîte mail</li>
+                    </ul>
+                </div>
 
-                <p class="confirmation-hint">
-                    Garde ce lien, c'est ta clé d'accès :<br>
-                    <code class="confirmation-link">{{ base_url }}/dashboard?token={{ token }}</code>
-                </p>
+                <button id="pay-btn" class="btn btn-primary btn-lg" style="margin-top: 8px; width: 100%; font-size: 1.15rem; padding: 16px;">
+                    Activer mon accès — 9,99 €
+                </button>
+                <p style="color: #888; font-size: 0.85rem; margin-top: 8px;">Paiement unique et sécurisé par Stripe. Pas d'abonnement.</p>
+
+                <div style="display: flex; gap: 24px; justify-content: center; margin-top: 20px; color: #999; font-size: 0.8rem;">
+                    <span>&#128274; Paiement sécurisé</span>
+                    <span>&#9889; Accès immédiat</span>
+                    <span>&#128176; Remboursable 48h</span>
+                </div>
             </div>
         </div>
     </section>
@@ -66,5 +78,36 @@
             </div>
         </div>
     </footer>
+
+    <script>
+    document.getElementById('pay-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('pay-btn');
+        btn.disabled = true;
+        btn.textContent = 'Redirection vers le paiement...';
+
+        try {
+            const res = await fetch('/api/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: '{{ user_id }}',
+                    token: '{{ token }}',
+                }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Erreur');
+            }
+
+            const { checkout_url } = await res.json();
+            window.location.href = checkout_url;
+        } catch (err) {
+            alert('Erreur: ' + err.message);
+            btn.disabled = false;
+            btn.textContent = 'Activer mon accès — 9,99 €';
+        }
+    });
+    </script>
 </body>
 </html>
