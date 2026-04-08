@@ -174,7 +174,6 @@ Je serais ravi(e) de mettre mes compétences et ma passion au service de votre s
 
 Je me tiens à votre disposition pour un entretien à votre convenance.
 
-Cordialement,
-Candidature via VoileCV"""
+Cordialement"""
 
     return letter
