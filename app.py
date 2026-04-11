@@ -29,6 +29,21 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
+# Redirect non-www to www
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import RedirectResponse as StarletteRedirect
+
+class WwwRedirectMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        host = request.headers.get("host", "")
+        if host == "voilecv.fr":
+            url = request.url.replace(scheme="https").replace(netloc="www.voilecv.fr")
+            return StarletteRedirect(str(url), status_code=301)
+        return await call_next(request)
+
+app.add_middleware(WwwRedirectMiddleware)
+
+
 def init_app_db():
     """Create app-specific tables (users/payments)."""
     init_db()  # scraping tables
