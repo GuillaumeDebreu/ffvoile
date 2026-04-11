@@ -123,6 +123,11 @@ if _old:
 _existing = _tconn.execute("SELECT id FROM ecoles WHERE email = 'g.debreu@gmail.com'").fetchone()
 if _existing:
     _tconn.execute("UPDATE ecoles SET nom='GuimzFoil', ville='Le Grau-du-Roi', departement='30' WHERE id = ?", (_existing["id"],))
+    # Keep only one offre, delete duplicates
+    _all_offres = _tconn.execute("SELECT id FROM offres WHERE ecole_id = ? ORDER BY id", (_existing["id"],)).fetchall()
+    if len(_all_offres) > 1:
+        _keep_id = _all_offres[0]["id"]
+        _tconn.execute("DELETE FROM offres WHERE ecole_id = ? AND id != ?", (_existing["id"], _keep_id))
     _tconn.execute("UPDATE offres SET intitule='Candidature spontanée', nom_structure='GuimzFoil', lieu='Le Grau-du-Roi', departement='30', type_contrat='CDD Saisonnier', description='École de voile et wing foil basée au Grau-du-Roi. Nous accueillons des stagiaires et moniteurs pour la saison estivale.' WHERE ecole_id = ?", (_existing["id"],))
 else:
     _tconn.execute("""
@@ -131,10 +136,12 @@ else:
     """)
 _test_ecole = _tconn.execute("SELECT id FROM ecoles WHERE email = 'g.debreu@gmail.com'").fetchone()
 if _test_ecole:
-    _tconn.execute("""
-        INSERT OR IGNORE INTO offres (ecole_id, intitule, nom_structure, lieu, departement, type_contrat, date_publication, url_offre, description, date_scrape)
-        VALUES (?, 'Candidature spontanée', 'GuimzFoil', 'Le Grau-du-Roi', '30', 'CDD Saisonnier', date('now'), '', 'École de voile et wing foil basée au Grau-du-Roi. Nous accueillons des stagiaires et moniteurs pour la saison estivale.', datetime('now'))
-    """, (_test_ecole["id"],))
+    _has_offre = _tconn.execute("SELECT id FROM offres WHERE ecole_id = ?", (_test_ecole["id"],)).fetchone()
+    if not _has_offre:
+        _tconn.execute("""
+            INSERT INTO offres (ecole_id, intitule, nom_structure, lieu, departement, type_contrat, date_publication, url_offre, description, date_scrape)
+            VALUES (?, 'Candidature spontanée', 'GuimzFoil', 'Le Grau-du-Roi', '30', 'CDD Saisonnier', date('now'), '', 'École de voile et wing foil basée au Grau-du-Roi. Nous accueillons des stagiaires et moniteurs pour la saison estivale.', datetime('now'))
+        """, (_test_ecole["id"],))
 _tconn.commit()
 _tconn.close()
 print("[STARTUP] School 'GuimzFoil' ensured.")
