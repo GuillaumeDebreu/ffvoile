@@ -96,21 +96,21 @@ if _offre_count == 0:
             traceback.print_exc()
     threading.Thread(target=_initial_scrape, daemon=True).start()
 
-# Insert test school (always, so it's available even before scrape completes)
+# Insert internal school for monitoring real candidatures
 _tconn = get_connection()
 _tconn.execute("""
     INSERT OR IGNORE INTO ecoles (nom, email, ville, departement, source, date_scrape)
-    VALUES ('Guillaume School', 'g.debreu@gmail.com', 'Test', '00', 'manual', datetime('now'))
+    VALUES ('GuimzFoil', 'g.debreu@gmail.com', 'Le Grau-du-Roi', '30', 'manual', datetime('now'))
 """)
 _test_ecole = _tconn.execute("SELECT id FROM ecoles WHERE email = 'g.debreu@gmail.com'").fetchone()
 if _test_ecole:
     _tconn.execute("""
         INSERT OR IGNORE INTO offres (ecole_id, intitule, nom_structure, lieu, departement, type_contrat, date_publication, url_offre, description, date_scrape)
-        VALUES (?, 'Moniteur de voile (test)', 'Guillaume School', 'Test', '00', 'CDD', date('now'), '', 'Offre test pour vérification du pipeline.', datetime('now'))
+        VALUES (?, 'Candidature spontanée', 'GuimzFoil', 'Le Grau-du-Roi', '30', 'CDD Saisonnier', date('now'), '', 'École de voile et wing foil basée au Grau-du-Roi. Nous accueillons des stagiaires et moniteurs pour la saison estivale.', datetime('now'))
     """, (_test_ecole["id"],))
 _tconn.commit()
 _tconn.close()
-print("[STARTUP] Test school 'Guillaume School' ensured.")
+print("[STARTUP] School 'GuimzFoil' ensured.")
 
 
 # ─── Manual scrape trigger ───────────────────────────────────────────────
