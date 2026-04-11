@@ -206,7 +206,7 @@
     <script>
     const TOKEN = '{{ token }}';
 
-    function showToast(type, sent, skipped, failed, errorMsg) {
+    function showToast(type, sent, skipped, failed, errorMsg, details) {
         const el = id => document.getElementById(id);
         if (type === 'success') {
             el('toast-icon').textContent = sent > 0 ? '\u2705' : '\u26A0\uFE0F';
@@ -214,7 +214,20 @@
             let stats = '';
             if (sent > 0) stats += `<div class="toast-stat"><span class="label">Envoyé${sent > 1 ? 's' : ''}</span><span class="value success">${sent}</span></div>`;
             if (skipped > 0) stats += `<div class="toast-stat"><span class="label">Déjà envoyé${skipped > 1 ? 's' : ''}</span><span class="value warn">${skipped}</span></div>`;
-            if (failed > 0) stats += `<div class="toast-stat"><span class="label">Échoué${failed > 1 ? 's' : ''}</span><span class="value error">${failed}</span></div>`;
+            if (failed > 0) {
+                stats += `<div class="toast-stat"><span class="label">Échoué${failed > 1 ? 's' : ''}</span><span class="value error">${failed}</span></div>`;
+                if (details) {
+                    const failedDetails = details.filter(d => d.status === 'failed' || d.status === 'skipped');
+                    if (failedDetails.length > 0) {
+                        stats += '<div style="margin-top:12px;text-align:left;font-size:0.85rem;color:#888">';
+                        failedDetails.forEach(d => {
+                            const reason = d.reason === 'no email' ? 'Pas d\'email' : d.reason === 'already sent' ? 'Déjà envoyé' : 'Erreur d\'envoi';
+                            stats += `<div style="padding:3px 0">&bull; ${d.ecole_nom || 'École #'+d.ecole_id} — <span style="color:#d32f2f">${reason}</span></div>`;
+                        });
+                        stats += '</div>';
+                    }
+                }
+            }
             el('toast-body').innerHTML = stats || '<p>Aucune candidature à traiter.</p>';
         } else {
             el('toast-icon').textContent = '\u274C';
@@ -415,7 +428,7 @@
             const result = await res.json();
 
             if (res.ok) {
-                showToast('success', result.sent, result.skipped, result.failed);
+                showToast('success', result.sent, result.skipped, result.failed, null, result.details);
                 selected.clear();
                 await loadData();
             } else {

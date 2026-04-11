@@ -720,6 +720,19 @@ async def track_open(candidature_id: int):
     ).fetchone()
 
     if cand and cand["status"] == "sent":
+        # Ignore opens within 30 seconds of sending (mail server pre-fetching)
+        from datetime import datetime as dt
+        sent_at = cand["sent_at"]
+        if sent_at:
+            try:
+                sent_time = dt.fromisoformat(sent_at)
+                now = dt.utcnow()
+                if (now - sent_time).total_seconds() < 30:
+                    conn.close()
+                    return Response(content=PIXEL_PNG, media_type="image/png",
+                                   headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+            except Exception:
+                pass
         conn.execute(
             "UPDATE candidatures SET status = 'opened', opened_at = datetime('now') WHERE id = ?",
             (candidature_id,)
