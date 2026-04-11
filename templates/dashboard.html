@@ -132,6 +132,53 @@
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
     </style>
 
+    <!-- Confirm Send Modal -->
+    <div id="confirm-overlay" style="display:none">
+        <div id="confirm-box">
+            <div id="confirm-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0077b6" stroke-width="1.5">
+                    <path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+                </svg>
+            </div>
+            <div id="confirm-title"></div>
+            <div id="confirm-body"></div>
+            <div id="confirm-buttons">
+                <button id="confirm-cancel" onclick="closeConfirm()">Annuler</button>
+                <button id="confirm-send">Envoyer</button>
+            </div>
+        </div>
+    </div>
+    <style>
+        #confirm-overlay {
+            position: fixed; inset: 0; z-index: 9998;
+            background: rgba(0,0,0,0.45); display: flex;
+            align-items: center; justify-content: center;
+            animation: fadeIn .2s;
+        }
+        #confirm-box {
+            background: white; border-radius: 16px; padding: 32px;
+            max-width: 420px; width: 90%; text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp .3s ease;
+        }
+        #confirm-icon { margin-bottom: 16px; }
+        #confirm-title { font-size: 1.25rem; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+        #confirm-body { font-size: 0.95rem; color: #555; line-height: 1.6; margin-bottom: 24px; }
+        #confirm-buttons { display: flex; gap: 12px; justify-content: center; }
+        #confirm-cancel {
+            background: #f0f0f0; color: #333; border: none; border-radius: 10px;
+            padding: 12px 28px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+            transition: background .2s;
+        }
+        #confirm-cancel:hover { background: #e0e0e0; }
+        #confirm-send {
+            background: #0077b6; color: white; border: none; border-radius: 10px;
+            padding: 12px 28px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+            transition: background .2s;
+        }
+        #confirm-send:hover { background: #005f8a; }
+    </style>
+
     <!-- Preview Modal -->
     <div class="modal-overlay" id="preview-modal" style="display:none">
         <div class="modal">
@@ -332,12 +379,27 @@
         searchTimeout = setTimeout(applyFilters, 300);
     });
 
+    function closeConfirm() {
+        document.getElementById('confirm-overlay').style.display = 'none';
+    }
+
+    function showConfirmSend(count) {
+        document.getElementById('confirm-title').textContent = `Envoyer ton CV à ${count} école${count > 1 ? 's' : ''} ?`;
+        document.getElementById('confirm-body').textContent = 'Chaque école recevra ta candidature avec ton CV et une lettre de motivation.';
+        document.getElementById('confirm-overlay').style.display = 'flex';
+        return new Promise(resolve => {
+            document.getElementById('confirm-send').onclick = () => { closeConfirm(); resolve(true); };
+            document.getElementById('confirm-cancel').onclick = () => { closeConfirm(); resolve(false); };
+        });
+    }
+
     // Send CV button
     document.getElementById('send-btn').addEventListener('click', async () => {
         const count = selected.size;
         if (count === 0) return;
 
-        if (!confirm(`Envoyer ton CV personnalisé à ${count} école(s) ?`)) return;
+        const confirmed = await showConfirmSend(count);
+        if (!confirmed) return;
 
         const btn = document.getElementById('send-btn');
         btn.disabled = true;
