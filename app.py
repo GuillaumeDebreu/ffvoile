@@ -143,6 +143,7 @@ async def trigger_scrape(force: str = ""):
 async def cron_refresh(key: str = ""):
     """Daily cron endpoint. Called by Railway cron service."""
     cron_key = _env("CRON" + "_KEY", "")
+    print(f"[CRON DEBUG] key received='{key}' (len={len(key)}), cron_key='{cron_key[:3]}...' (len={len(cron_key)}), match={key == cron_key}")
     if not cron_key or key != cron_key:
         raise HTTPException(403, "Invalid cron key")
 
