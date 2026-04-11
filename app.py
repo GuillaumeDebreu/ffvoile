@@ -98,10 +98,22 @@ if _offre_count == 0:
 
 # Insert internal school for monitoring real candidatures
 _tconn = get_connection()
-_tconn.execute("""
-    INSERT OR IGNORE INTO ecoles (nom, email, ville, departement, source, date_scrape)
-    VALUES ('GuimzFoil', 'g.debreu@gmail.com', 'Le Grau-du-Roi', '30', 'manual', datetime('now'))
-""")
+# Clean up old test school data
+_old = _tconn.execute("SELECT id FROM ecoles WHERE nom = 'Guillaume School'").fetchone()
+if _old:
+    _tconn.execute("DELETE FROM offres WHERE ecole_id = ?", (_old["id"],))
+    _tconn.execute("DELETE FROM candidatures WHERE ecole_id = ?", (_old["id"],))
+    _tconn.execute("DELETE FROM ecoles WHERE id = ?", (_old["id"],))
+# Update existing or insert new
+_existing = _tconn.execute("SELECT id FROM ecoles WHERE email = 'g.debreu@gmail.com'").fetchone()
+if _existing:
+    _tconn.execute("UPDATE ecoles SET nom='GuimzFoil', ville='Le Grau-du-Roi', departement='30' WHERE id = ?", (_existing["id"],))
+    _tconn.execute("UPDATE offres SET intitule='Candidature spontanée', nom_structure='GuimzFoil', lieu='Le Grau-du-Roi', departement='30', type_contrat='CDD Saisonnier', description='École de voile et wing foil basée au Grau-du-Roi. Nous accueillons des stagiaires et moniteurs pour la saison estivale.' WHERE ecole_id = ?", (_existing["id"],))
+else:
+    _tconn.execute("""
+        INSERT INTO ecoles (nom, email, ville, departement, source, date_scrape)
+        VALUES ('GuimzFoil', 'g.debreu@gmail.com', 'Le Grau-du-Roi', '30', 'manual', datetime('now'))
+    """)
 _test_ecole = _tconn.execute("SELECT id FROM ecoles WHERE email = 'g.debreu@gmail.com'").fetchone()
 if _test_ecole:
     _tconn.execute("""
