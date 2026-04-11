@@ -4,7 +4,12 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 
-DB_PATH = Path(__file__).parent.parent / "voilecv.db"
+import os
+_data_dir = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "")
+if _data_dir:
+    DB_PATH = Path(_data_dir) / "voilecv.db"
+else:
+    DB_PATH = Path(__file__).parent.parent / "voilecv.db"
 
 
 def get_connection() -> sqlite3.Connection:

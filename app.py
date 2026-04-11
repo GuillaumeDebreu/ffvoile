@@ -20,7 +20,8 @@ def _env(key, default=""):
 
 PRICE_CENTS = 999  # 9.99€
 
-UPLOAD_DIR = Path(__file__).parent / "uploads"
+_vol = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "")
+UPLOAD_DIR = Path(_vol) / "uploads" if _vol else Path(__file__).parent / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 app = FastAPI(title="VoileCV")
