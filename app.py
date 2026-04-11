@@ -353,7 +353,7 @@ async def stripe_webhook(request: Request):
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, _env("STRIPE_WEBHOOK_SECRET", "whsec_PLACEHOLDER")
+            payload, sig_header, _env("STRIPE_WEBHOOK_SECRET", "whsec_PLACEHOLDER").strip()
         )
     except (ValueError, stripe.SignatureVerificationError):
         raise HTTPException(400, "Invalid signature")
@@ -409,6 +409,17 @@ async def dashboard(request: Request, token: str = "", just_paid: str = ""):
                     conn.execute("UPDATE users SET paid = 1 WHERE id = ?", (user["id"],))
                     conn.commit()
                     user = conn.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
+                    # Send welcome email (webhook may have missed it)
+                    base_url = _env("BASE_URL", "http://localhost:8000")
+                    dashboard_url = f"{base_url}/dashboard?token={token}"
+                    def _send_welcome_fallback():
+                        try:
+                            from services.email_sender import send_welcome_email
+                            send_welcome_email(to_email=user["email"], dashboard_url=dashboard_url)
+                        except Exception as e:
+                            print(f"[WARN] Welcome email fallback failed: {e}")
+                    import threading
+                    threading.Thread(target=_send_welcome_fallback, daemon=True).start()
             except Exception:
                 pass
         if not user["paid"]:
